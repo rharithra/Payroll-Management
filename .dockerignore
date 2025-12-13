@@ -1,0 +1,15 @@
+# Avoid sending huge/irrelevant files to Docker daemon
+*.tar
+*.zip
+*.gz
+logs/
+data/
+jdk-*/
+target/
+node_modules/
+frontend/build/
+salary-app-*.tar
+dist/
+dist.zip
+.idea/
+.vscode/

@@ -1,0 +1,1114 @@
+.header {
+  margin-bottom: 30px;
+}
+
+.table-container {
+  margin-top: 20px;
+  overflow-x: auto;
+}
+
+/* Compact table styles to reduce row height */
+.salary-table th,
+.salary-table td {
+  padding: 4px 6px;        /* tighter than default */
+  line-height: 1.2;        /* shorter line height */
+  font-size: 12px;         /* slightly smaller text */
+  vertical-align: middle;  /* center content vertically */
+}
+
+/* Make action buttons compact too */
+.salary-table .btn-group .btn {
+  padding: 2px 6px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+/* Optional: ensure no fixed row heights */
+.salary-table tbody tr {
+  height: auto;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+.form-item.span-2 {
+  grid-column: 1 / -1;
+}
+/* Collapse to one column on narrow screens */
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Global theme tokens */
+:root {
+  --panel-bg: #fff;
+  --panel-border: #e5e7eb;
+  --panel-shadow: 0 6px 20px rgba(0,0,0,0.06);
+  --input-radius: 8px;
+  --input-height: 24px; /* compact default for non-add/master screens */
+  --label-color: #111827;
+  --muted: #6b7280;
+}
+
+/* Centered page container */
+.page {
+  max-width: 1100px;
+  margin: 24px auto;
+  padding: 0 16px;
+}
+
+/* Card panel around forms */
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  box-shadow: var(--panel-shadow);
+  padding: 24px;
+}
+
+/* Section title (optional for bigger forms) */
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  color: var(--label-color);
+}
+
+/* Form items: consistent spacing and label weight */
+.form-item {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+}
+.form-item label {
+  font-weight: 600;
+  color: var(--label-color);
+  margin-bottom: 6px;
+}
+
+/* Compact inputs for edit/add screens */
+.form-item input,
+.form-item select,
+.form-item textarea {
+  height: var(--input-height) !important;
+  padding: 3px 8px !important; /* slightly tighter padding */
+  font-size: 13px !important;
+  border-radius: var(--input-radius) !important;
+  border: 1px solid #d1d5db;
+  outline: none;
+  box-sizing: border-box;
+
+  /* New: avoid overly wide fields in each column */
+  width: 100%;
+  max-width: 420px; /* shrink visual width in the column */
+}
+
+.form-item input[type="date"] {
+  height: var(--input-height) !important;
+  padding: 3px 8px !important;
+  font-size: 13px !important;
+  width: 100%;
+  max-width: 420px; /* match other inputs */
+}
+.form-item input::placeholder {
+  color: var(--muted);
+}
+.form-item input[type="date"] {
+    height: var(--input-height) !important;
+    padding: 4px 8px !important;
+    font-size: 13px !important;
+}
+
+/* Right-align numbers for readability */
+.form-container input[type="number"] {
+  text-align: right;
+}
+
+/* Button bar: center variant for single-CTA forms */
+.btn-container.btn-center {
+  justify-content: center;
+  gap: 12px;
+}
+.btn-container.btn-center button {
+  min-width: 140px;
+  border-radius: 999px;
+  height: 40px;
+}
+
+/* Keep vertical Home buttons as you like */
+.home-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 60vh;
+  max-width: 360px;
+  margin: 0 auto;
+}
+.home-buttons .btn {
+  border-radius: 999px;
+  width: 100%;
+  padding: 12px 18px;
+}
+
+/* Responsive: stack form columns on small screens */
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Action buttons bar */
+.actions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;             /* Space between Add and Download */
+  margin-bottom: 12px;
+}
+
+/* Home buttons: single row, centered vertically and horizontally */
+.home-buttons {
+  display: flex;
+  flex-direction: column;     /* vertical stack */
+  align-items: center;        /* center horizontally */
+  justify-content: center;    /* center vertically */
+  gap: 16px;
+  min-height: 60vh;           /* space to center vertically */
+  max-width: 360px;
+  margin: 0 auto;
+}
+
+.home-buttons .btn {
+  border-radius: 999px;       /* round corners */
+  width: 100%;                /* full width in the column */
+  padding: 12px 18px;
+}
+
+/* Optional: stack automatically is already vertical; keep small-screen behavior */
+@media (max-width: 576px) {
+  .home-buttons {
+    min-height: 50vh;
+  }
+}
+/* Reusable rounded buttons already exist (.btn, .btn-primary, .btn-secondary) */
+/* Add an info variant for the third button */
+.btn-info {
+  background: #0dcaf0;        /* Bootstrap-like cyan */
+  color: #fff;
+}
+
+/* Two-column edit form layout */
+.edit-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); /* equal width columns */
+  column-gap: 16px;
+  row-gap: 12px;
+  align-items: start;
+  max-width: 1100px;
+}
+
+/* Inputs fill their column but don’t get too wide */
+.edit-form-grid input,
+.edit-form-grid select,
+.edit-form-grid textarea {
+  width: 100%;
+  max-width: 480px;       /* cap width so right column isn’t too wide */
+  box-sizing: border-box;
+}
+
+/* Bottom spacing for the save button row */
+.form-actions {
+  grid-column: 1 / -1;    /* span both columns */
+  margin-top: 8px;
+}
+
+/* Responsive: stack to one column on small screens */
+@media (max-width: 768px) {
+  .edit-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 576px) {
+  .home-buttons {
+    flex-direction: column; /* stack on small screens */
+    min-height: auto;
+  }
+}
+.btn-container.btn-center {
+  justify-content: center;  /* center the Save button */
+  gap: 12px;
+}
+.btn-container.btn-center button {
+  min-width: 120px;
+}
+
+/* Button layout and rounded corners */
+.btn-container {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.btn-center {
+  justify-content: center;
+}
+.btn-rounded { border-radius: 24px; }
+.home-buttons .btn { min-width: 280px; }
+.btn-rounded {
+  border-radius: 8px;
+}
+
+/* Optional: make buttons look consistent if Bootstrap is overridden */
+.btn {
+  padding: 8px 14px;
+}
+
+/* Professional, visible title bar */
+/* Top title bar — centered links, no gap */
+/* Reset default margins that cause thin white gaps around the page */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+}
+
+/* Title bar: centered links with even spacing; fill edge-to-edge */
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;   /* center the 4 hyperlinks */
+  gap: 24px;                 /* even, professional spacing */
+  padding: 14px 20px;
+  background-color: #0f4c81; /* corporate navy */
+  border-bottom: none;       /* remove thin divider line/gap */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+/* Ensure no extra spacing between adjacent links (fallback override) */
+.top-nav a + a { margin-left: 0; }
+
+.top-nav a {
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+}
+
+.top-nav a:hover,
+.top-nav a:focus {
+  color: #cfe3ff;
+  text-decoration: underline;
+}
+.top-nav a:visited {
+  color: #ffffff;            /* avoid purple visited state */
+}
+
+/* Payslip layout */
+.payslip-page {
+  max-width: 1024px;
+  margin: 0 auto;
+}
+.payslip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 16px 0;
+}
+.payslip-actions {
+  display: flex;
+  gap: 12px;
+}
+.payslip-selector {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.payslip-selector select {
+  min-width: 280px;
+  padding: 6px 8px;
+}
+
+/* Payslip content wrapper */
+.payslip-container {
+  background: #ffffff;
+  padding: 16px;
+}
+
+/* Card border (screen) */
+.payslip-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fff;
+}
+.slip-header {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px dashed #cbd5e1;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+.company-name {
+  font-size: 18px;
+  font-weight: 700;
+}
+.company-sub {
+  color: #6b7280;
+}
+.slip-meta {
+  text-align: right;
+  font-size: 14px;
+}
+
+.slip-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.grid-section .section-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.grid-section .row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px dotted #e5e7eb;
+}
+.grid-section .row.total {
+  font-weight: 700;
+}
+
+.slip-net {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f1f5f9;
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+.net-label { font-weight: 700; }
+.net-value { font-size: 18px; font-weight: 800; }
+
+.slip-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+/* Print-friendly: hide non-essential UI and use A4-like margins */
+@media print {
+  /* Ensure the main page container doesn't restrict width during print */
+  .page {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Fit wide salary table across the printable area */
+  .salary-table {
+    table-layout: fixed !important; /* distribute columns evenly */
+    width: 100% !important;
+    font-size: 10px !important;    /* smaller text to fit more columns */
+  }
+  .salary-table th,
+  .salary-table td {
+    padding: 2px 4px !important;    /* tighter cell padding for print */
+  }
+  .salary-table th {
+    white-space: normal !important; /* allow header labels to wrap */
+    word-wrap: break-word !important;
+  }
+
+  .top-nav,
+  .no-print {
+    display: none !important;
+  }
+  .payslip-page {
+    max-width: none;
+    margin: 0;
+  }
+
+  /* Remove extra page padding when printing the list */
+  body {
+    padding: 0 !important;
+  }
+
+  /* Hide the “Actions” column even if not tagged */
+  .salary-table th:last-child,
+  .salary-table td:last-child {
+    display: none !important;
+  }
+
+  /* Make table fit pages nicely */
+  .table-container {
+    overflow: visible !important;
+  }
+
+  .payslip-card {
+    border: 2px solid #000;   /* keep black border */
+    padding: 8mm;             /* add inner space so border doesn't touch columns */
+    background: #fff;         /* ensure white background in print */
+  }
+  /* Optional: small gaps between blocks inside the card */
+  .payslip-card .classic-header,
+  .payslip-card .classic-title,
+  .payslip-card .payslip-classic {
+    margin-top: 2mm;
+    margin-bottom: 2mm;
+  }
+  /* Page margin (optional, comment out if not needed) */
+  @page {
+    size: A4 landscape;   /* use landscape to fit many columns */
+    margin: 10mm;         /* slightly tighter margins */
+  }
+}
+
+/* Classic payslip layout to match screenshot */
+.classic-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.classic-header .company-block {
+  text-align: center;
+  flex: 1;
+}
+.classic-header .company-block .company-title {
+  font-weight: 700;
+  font-size: 18px;
+}
+.classic-title {
+  text-align: center;
+  font-weight: 700;
+  margin: 8px 0;
+  background: #d9d9d9;        /* light grey fill */
+  border: 1px solid #000;     /* black border around title bar */
+  padding: 4px 0;
+}
+.payslip-classic {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+}
+.payslip-classic th,
+.payslip-classic td {
+  border: 2px solid #2d2d2d; /* darker, thicker lines */
+  padding: 6px 8px;
+  font-size: 14px;
+}
+.payslip-classic.two-col thead th {
+  text-align: center;
+}
+.payslip-classic .right {
+  text-align: right;
+}
+.payslip-classic .bold td,
+.payslip-classic .bold th {
+  font-weight: 600;
+}
+.signature-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  font-weight: 600;
+}
+
+/* Add Salary Details ONLY: increase textbox/select height */
+.add-salary {
+  --input-height: 36px;
+}
+.add-salary .form-item input,
+.add-salary .form-item select,
+.add-salary .form-item textarea {
+  height: var(--input-height) !important;
+  padding: 6px 10px !important;
+}
+.add-salary .form-item input[type="date"] {
+  height: var(--input-height) !important;
+  padding: 6px 10px !important;
+  font-size: 13px !important;
+}
+
+/* Employee Master: same height as Add Salary Details */
+.employee-master {
+  --input-height: 36px;
+}
+.employee-master .form-item input,
+.employee-master .form-item select,
+.employee-master .form-item textarea {
+  height: var(--input-height) !important;
+  padding: 6px 10px !important;
+}
+.employee-master .form-item input[type="date"] {
+  height: var(--input-height) !important;
+  padding: 6px 10px !important;
+  font-size: 13px !important;
+}
+.form-item input::placeholder {
+  color: var(--muted);
+}
+.form-item input[type="date"] {
+    height: var(--input-height) !important;
+    padding: 4px 8px !important;
+    font-size: 13px !important;
+}
+
+/* Right-align numbers for readability */
+.form-container input[type="number"] {
+  text-align: right;
+}
+
+/* Button bar: center variant for single-CTA forms */
+.btn-container.btn-center {
+  justify-content: center;
+  gap: 12px;
+}
+.btn-container.btn-center button {
+  min-width: 140px;
+  border-radius: 999px;
+  height: 40px;
+}
+
+/* Keep vertical Home buttons as you like */
+.home-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 60vh;
+  max-width: 360px;
+  margin: 0 auto;
+}
+.home-buttons .btn {
+  border-radius: 999px;
+  width: 100%;
+  padding: 12px 18px;
+}
+
+/* Responsive: stack form columns on small screens */
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Action buttons bar */
+.actions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;             /* Space between Add and Download */
+  margin-bottom: 12px;
+}
+
+/* Home buttons: single row, centered vertically and horizontally */
+.home-buttons {
+  display: flex;
+  flex-direction: column;     /* vertical stack */
+  align-items: center;        /* center horizontally */
+  justify-content: center;    /* center vertically */
+  gap: 16px;
+  min-height: 60vh;           /* space to center vertically */
+  max-width: 360px;
+  margin: 0 auto;
+}
+
+.home-buttons .btn {
+  border-radius: 999px;       /* round corners */
+  width: 100%;                /* full width in the column */
+  padding: 12px 18px;
+}
+
+/* Optional: stack automatically is already vertical; keep small-screen behavior */
+@media (max-width: 576px) {
+  .home-buttons {
+    min-height: 50vh;
+  }
+}
+/* Reusable rounded buttons already exist (.btn, .btn-primary, .btn-secondary) */
+/* Add an info variant for the third button */
+.btn-info {
+  background: #0dcaf0;        /* Bootstrap-like cyan */
+  color: #fff;
+}
+
+/* Two-column edit form layout */
+.edit-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); /* equal width columns */
+  column-gap: 16px;
+  row-gap: 12px;
+  align-items: start;
+  max-width: 1100px;
+}
+
+/* Inputs fill their column but don’t get too wide */
+.edit-form-grid input,
+.edit-form-grid select,
+.edit-form-grid textarea {
+  width: 100%;
+  max-width: 480px;       /* cap width so right column isn’t too wide */
+  box-sizing: border-box;
+}
+
+/* Bottom spacing for the save button row */
+.form-actions {
+  grid-column: 1 / -1;    /* span both columns */
+  margin-top: 8px;
+}
+
+/* Responsive: stack to one column on small screens */
+@media (max-width: 768px) {
+  .edit-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 576px) {
+  .home-buttons {
+    flex-direction: column; /* stack on small screens */
+    min-height: auto;
+  }
+}
+.btn-container.btn-center {
+  justify-content: center;  /* center the Save button */
+  gap: 12px;
+}
+.btn-container.btn-center button {
+  min-width: 120px;
+}
+
+/* Button layout and rounded corners */
+.btn-container {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.btn-center {
+  justify-content: center;
+}
+.btn-rounded { border-radius: 24px; }
+.home-buttons .btn { min-width: 280px; }
+.btn-rounded {
+  border-radius: 8px;
+}
+
+/* Optional: make buttons look consistent if Bootstrap is overridden */
+.btn {
+  padding: 8px 14px;
+}
+
+/* Professional, visible title bar */
+/* Top title bar — centered links, no gap */
+/* Reset default margins that cause thin white gaps around the page */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+}
+
+/* Title bar: centered links with even spacing; fill edge-to-edge */
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;   /* center the 4 hyperlinks */
+  gap: 24px;                 /* even, professional spacing */
+  padding: 14px 20px;
+  background-color: #0f4c81; /* corporate navy */
+  border-bottom: none;       /* remove thin divider line/gap */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+/* Ensure no extra spacing between adjacent links (fallback override) */
+.top-nav a + a { margin-left: 0; }
+
+.top-nav a {
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+}
+
+.top-nav a:hover,
+.top-nav a:focus {
+  color: #cfe3ff;
+  text-decoration: underline;
+}
+.top-nav a:visited {
+  color: #ffffff;            /* avoid purple visited state */
+}
+
+/* Payslip layout */
+.payslip-page {
+  max-width: 1024px;
+  margin: 0 auto;
+}
+.payslip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 16px 0;
+}
+.payslip-actions {
+  display: flex;
+  gap: 12px;
+}
+.payslip-selector {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.payslip-selector select {
+  min-width: 280px;
+  padding: 6px 8px;
+}
+
+/* Payslip content wrapper */
+.payslip-container {
+  background: #ffffff;
+  padding: 16px;
+}
+
+/* Card border (screen) */
+.payslip-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fff;
+}
+.slip-header {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px dashed #cbd5e1;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+.company-name {
+  font-size: 18px;
+  font-weight: 700;
+}
+.company-sub {
+  color: #6b7280;
+}
+.slip-meta {
+  text-align: right;
+  font-size: 14px;
+}
+
+.slip-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.grid-section .section-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.grid-section .row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px dotted #e5e7eb;
+}
+.grid-section .row.total {
+  font-weight: 700;
+}
+
+.slip-net {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f1f5f9;
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+.net-label { font-weight: 700; }
+.net-value { font-size: 18px; font-weight: 800; }
+
+.slip-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+/* Print-friendly: hide non-essential UI and use A4-like margins */
+@media print {
+  .top-nav,
+  .no-print {
+    display: none !important;
+  }
+  .payslip-page {
+    max-width: none;
+    margin: 0;
+  }
+
+  /* Remove extra page padding when printing the list */
+  body {
+    padding: 0 !important;
+  }
+
+  /* Hide the “Actions” column even if not tagged */
+  .salary-table th:last-child,
+  .salary-table td:last-child {
+    display: none !important;
+  }
+
+  /* Make table fit pages nicely */
+  .table-container {
+    overflow: visible !important;
+  }
+
+  .payslip-card {
+    border: 2px solid #000;   /* keep black border */
+    padding: 8mm;             /* add inner space so border doesn't touch columns */
+    background: #fff;         /* ensure white background in print */
+  }
+  /* Optional: small gaps between blocks inside the card */
+  .payslip-card .classic-header,
+  .payslip-card .classic-title,
+  .payslip-card .payslip-classic {
+    margin-top: 2mm;
+    margin-bottom: 2mm;
+  }
+  /* Page margin (optional, comment out if not needed) */
+  @page {
+    margin: 12mm;
+  }
+}
+
+/* Classic payslip layout to match screenshot */
+.classic-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.classic-header .company-block {
+  text-align: center;
+  flex: 1;
+}
+.classic-header .company-block .company-title {
+  font-weight: 700;
+  font-size: 18px;
+}
+.classic-title {
+  text-align: center;
+  font-weight: 700;
+  margin: 8px 0;
+}
+.payslip-classic {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+}
+.payslip-classic th,
+.payslip-classic td {
+  border: 1px solid #000;     /* black grid lines */
+  padding: 6px 8px;
+  font-size: 14px;
+}
+/* Fill all header cells (labels and table headers) */
+.payslip-classic th {
+  background: #d9d9d9;        /* grey header cells like screenshot */
+}
+
+/* Center headings in the 2-column table */
+.payslip-classic.two-col thead th {
+  text-align: center;
+}
+.payslip-classic .right {
+  text-align: right;
+}
+.payslip-classic .bold td,
+.payslip-classic .bold th {
+  font-weight: 600;
+}
+.signature-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  font-weight: 600;
+}
+
+/* Add Salary Details ONLY: increase textbox/select height */
+.add-salary {
+  --input-height: 36px;
+}
+.add-salary .form-item input,
+.add-salary .form-item select,
+.add-salary .form-item textarea {
+  height: var(--input-height) !important;
+  padding: 6px 10px !important;
+}
+.add-salary .form-item input[type="date"] {
+  height: var(--input-height) !important;
+  padding: 6px 10px !important;
+  font-size: 13px !important;
+}
+
+/* Employee Master: same height as Add Salary Details */
+.employee-master {
+  --input-height: 36px;
+}
+.employee-master .form-item input,
+.employee-master .form-item select,
+.employee-master .form-item textarea {
+  height: var(--input-height) !important;
+  padding: 6px 10px !important;
+}
+.employee-master .form-item input[type="date"] {
+  height: var(--input-height) !important;
+  padding: 6px 10px !important;
+  font-size: 13px !important;
+}
+.form-item input::placeholder {
+  color: var(--muted);
+}
+.form-item input[type="date"] {
+    height: var(--input-height) !important;
+    padding: 4px 8px !important;
+    font-size: 13px !important;
+}
+
+/* Right-align numbers for readability */
+.form-container input[type="number"] {
+  text-align: right;
+}
+
+/* Button bar: center variant for single-CTA forms */
+.btn-container.btn-center {
+  justify-content: center;
+  gap: 12px;
+}
+.btn-container.btn-center button {
+  min-width: 140px;
+  border-radius: 999px;
+  height: 40px;
+}
+
+/* Keep vertical Home buttons as you like */
+.home-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 60vh;
+  max-width: 360px;
+  margin: 0 auto;
+}
+.home-buttons .btn {
+  border-radius: 999px;
+  width: 100%;
+  padding: 12px 18px;
+}
+
+/* Responsive: stack form columns on small screens */
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Action buttons bar */
+.actions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;             /* Space between Add and Download */
+  margin-bottom: 12px;
+}
+
+/* Home buttons: single row, centered vertically and horizontally */
+.home-buttons {
+  display: flex;
+  flex-direction: column;     /* vertical stack */
+  align-items: center;        /* center horizontally */
+  justify-content: center;    /* center vertically */
+  gap: 16px;
+  min-height: 60vh;           /* space to center vertically */
+  max-width: 360px;
+  margin: 0 auto;
+}
+
+.home-buttons .btn {
+  border-radius: 999px;       /* round corners */
+  width: 100%;                /* full width in the column */
+  padding: 12px 18px;
+}
+
+/* Optional: stack automatically is already vertical; keep small-screen behavior */
+@media (max-width: 576px) {
+  .home-buttons {
+    min-height: 50vh;
+  }
+}
+/* Reusable rounded buttons already exist (.btn, .btn-primary, .btn-secondary) */
+/* Add an info variant for the third button */
+.btn-info {
+  background: #0dcaf0;        /* Bootstrap-like cyan */
+  color: #fff;
+}
+
+/* Two-column edit form layout */
+.edit-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); /* equal width columns */
+  column-gap: 16px;
+  row-gap: 12px;
+  align-items: start;
+  max-width: 1100px;
+}
+
+/* Inputs fill their column but don’t get too wide */
+.edit-form-grid input,
+.edit-form-grid select,
+.edit-form-grid textarea {
+  width: 100%;
+  max-width: 480px;       /* cap width so right column isn’t too wide */
+  box-sizing: border-box;
+}
+
+/* Bottom spacing for the save button row */
+.form-actions {
+  grid-column: 1 / -1;    /* span both columns */
+  margin-top: 8px;
+}
+
+/* Responsive: stack to one column on small screens */
+@media (max-width: 768px) {
+  .edit-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 576px) {
+  .home-buttons {
+    flex-direction: column; /* stack on small screens */
+    min-height: auto;
+  }
+}
+.btn-container.btn-center {
+  justify-content: center;  /* center the Save button */
+  gap: 12px;
+}
+.btn-container.btn-center button {
+  min-width: 120px;
+}

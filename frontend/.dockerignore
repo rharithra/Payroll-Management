@@ -1,0 +1,6 @@
+# Keep build context lean
+*.tar
+*.zip
+*.gz
+node_modules/
+build/
