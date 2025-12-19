@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
+import axios from 'axios';
 import EmployeeList from './components/EmployeeList';
 import Home from './components/Home';
 import AddEmployee from './components/AddEmployee';
@@ -11,6 +12,13 @@ import Payslip from './components/Payslip'; // NEW
 import EmployeeMasterList from './components/EmployeeMasterList'; // NEW
 import Login from './components/Login';
 import Register from './components/Register';
+
+// Set base URL for API requests
+// In production (Hostinger), this should be the Render Backend URL.
+// In development, it falls back to localhost or relative path if configured.
+if (process.env.REACT_APP_API_URL) {
+  axios.defaults.baseURL = process.env.REACT_APP_API_URL;
+}
 
 function App() {
   const [role, setRole] = React.useState(localStorage.getItem('role') || '');

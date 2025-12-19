@@ -6,6 +6,10 @@ function EmployeeMasterList() {
   const [masters, setMasters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customBoxes, setCustomBoxes] = useState([]);
+  const [newLabel, setNewLabel] = useState('');
+  const [newCategory, setNewCategory] = useState('Earnings');
 
   useEffect(() => {
     const fetchMasters = async () => {
@@ -21,10 +25,35 @@ function EmployeeMasterList() {
     fetchMasters();
   }, []);
 
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('customBoxes');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const normalized = Array.isArray(parsed) ? parsed.map(x => ({ id: x.id, label: x.label, category: x.category || 'Earnings' })) : [];
+        setCustomBoxes(normalized);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('customBoxes', JSON.stringify(customBoxes));
+    } catch {}
+  }, [customBoxes]);
+
   return (
     <>
       <div className="actions-bar">
         <Link to="/masters/add" className="btn btn-primary btn-rounded">Add Employee Master</Link>
+        <button
+          type="button"
+          className="btn btn-outline-primary btn-rounded"
+          style={{ marginLeft: 8 }}
+          onClick={() => setShowCustomModal(true)}
+        >
+          Custom Boxes
+        </button>
       </div>
 
       {loading && <div>Loading...</div>}
@@ -80,6 +109,84 @@ function EmployeeMasterList() {
           </tbody>
         </table>
       </div>
+      {showCustomModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 8,
+              padding: 16,
+              width: '90%',
+              maxWidth: 560
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 18 }}>Custom Boxes</div>
+              <button type="button" className="btn btn-secondary btn-rounded" onClick={() => setShowCustomModal(false)}>Close</button>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <input
+                type="text"
+                placeholder="Label"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                style={{ flex: 1 }}
+              />
+              <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)}>
+                <option value="Employee">Employee</option>
+                <option value="Earnings">Earnings</option>
+                <option value="Deductions">Deductions</option>
+                <option value="Summary">Summary</option>
+              </select>
+              <button
+                type="button"
+                className="btn btn-primary btn-rounded"
+                onClick={() => {
+                  const label = newLabel.trim();
+                  if (!label) return;
+                  const next = [...customBoxes, { id: Date.now(), label, category: newCategory }];
+                  setCustomBoxes(next);
+                  setNewLabel('');
+                }}
+              >
+                Add
+              </button>
+            </div>
+            <div>
+              {customBoxes.length === 0 ? (
+                <div style={{ color: '#6b7280' }}>No custom boxes</div>
+              ) : (
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {customBoxes.map(cb => (
+                    <li key={cb.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
+                      <div>{cb.label} <span style={{ color: '#6b7280' }}>({cb.category})</span></div>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-danger"
+                        onClick={() => {
+                          setCustomBoxes(prev => prev.filter(x => x.id !== cb.id));
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

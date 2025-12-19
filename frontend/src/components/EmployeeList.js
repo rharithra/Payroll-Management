@@ -8,6 +8,15 @@ function EmployeeList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Filter state
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const years = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
+
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+
   useEffect(() => {
     fetchEmployees();
   }, []);
@@ -102,16 +111,8 @@ function EmployeeList() {
   // Add CSV download function
   // Helper to determine if a value is meaningful
   const isNonEmpty = (val) => {
-    if (val == null) return false;
-    if (typeof val === 'number') return val !== 0;
-    if (typeof val === 'string') {
-      const t = val.trim();
-      if (t === '') return false;
-      // If string is numeric, consider 0 as empty
-      const n = Number(t);
-      if (!Number.isNaN(n)) return n !== 0;
-      return true;
-    }
+    if (val === null || val === undefined) return false;
+    if (typeof val === 'string' && val.trim() === '') return false;
     return true;
   };
 
@@ -167,9 +168,25 @@ function EmployeeList() {
   ];
 
   // Show ONLY rows with at least one meaningful field across all columns
-  const visibleEmployees = (employees || []).filter(
-    (e) => e && allColumns.some((col) => isNonEmpty(e[col.key]))
-  );
+  const visibleEmployees = (employees || []).filter((e) => {
+    // 1. Basic empty check
+    const hasData = allColumns.some((col) => isNonEmpty(e[col.key]));
+    if (!hasData) return false;
+
+    // 2. Month/Year filter
+    // e.salaryDate is expected to be "YYYY-MM-DD" from backend
+    if (!e.salaryDate) return false; // Hide rows with no date if filter is active? Or show? 
+    // Usually we want to filter STRICTLY by month if selected.
+    
+    const d = new Date(e.salaryDate);
+    if (isNaN(d.getTime())) return false;
+    
+    // d.getMonth() is 0-indexed (0=Jan, 11=Dec). selectedMonth is 1-12.
+    const matchMonth = (d.getMonth() + 1) === parseInt(selectedMonth);
+    const matchYear = d.getFullYear() === parseInt(selectedYear);
+    
+    return matchMonth && matchYear;
+  });
 
   // Show ALL columns (even if some cells are blank)
   // Adjust visible columns to remove Income Tax and PF
@@ -312,6 +329,27 @@ function EmployeeList() {
           <button type="button" onClick={() => window.print()} className="btn btn-outline-secondary btn-rounded">
             Print
           </button>
+          
+          {/* Month/Year Filter */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+            <select 
+                className="form-select" 
+                style={{ width: 'auto', display: 'inline-block', padding: '6px 12px', fontSize: '14px' }}
+                value={selectedMonth} 
+                onChange={e => setSelectedMonth(e.target.value)}
+            >
+                {monthNames.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
+            </select>
+            <select 
+                className="form-select" 
+                style={{ width: 'auto', display: 'inline-block', padding: '6px 12px', fontSize: '14px' }}
+                value={selectedYear} 
+                onChange={e => setSelectedYear(e.target.value)}
+            >
+                {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+
           {(() => {
             const role = localStorage.getItem('role') || '';
             return (

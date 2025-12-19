@@ -49,7 +49,23 @@ export default function AddEmployee() {
 
     const n = (v) => (v == null ? 0 : v);
 
-    const computeDerived = (s) => {
+    const [customBoxes, setCustomBoxes] = useState([]);
+    const [customBoxValues, setCustomBoxValues] = useState({});
+    const [newEarningLabel, setNewEarningLabel] = useState('');
+    const [newDeductionLabel, setNewDeductionLabel] = useState('');
+
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem('customBoxes');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                const normalized = Array.isArray(parsed) ? parsed.map(x => ({ id: x.id, label: x.label, category: x.category || 'Earnings' })) : [];
+                setCustomBoxes(normalized);
+            }
+        } catch {}
+    }, []);
+
+    const computeDerived = (s, currentBoxes = customBoxValues) => {
         const days = n(s.days);
         const core =
             n(s.basicSalary) +
@@ -68,6 +84,7 @@ export default function AddEmployee() {
             n(s.attendanceAllowance);
 
         // Aggregate other allowances
+        const extraEarn = (customBoxes || []).filter(cb => cb.category === 'Earnings').reduce((acc, cb) => acc + n(currentBoxes[cb.label]), 0);
         const otherAllowance =
             n(s.leads) +
             n(s.areaAllowance) +
@@ -76,14 +93,16 @@ export default function AddEmployee() {
             n(s.review) +
             n(s.dresscode) +
             n(s.arrears) +
-            n(s.bonus);
+            n(s.bonus) +
+            extraEarn;
 
         const grossSalary = proratedCore + nonProrated + otherAllowance;
 
         // NEW: ESS as 5% of gross; store in professionalTax
         const professionalTax = grossSalary * 0.05;
 
-        const otherDeduction = n(s.advance) + n(s.salesDebits) + n(s.underPerformance);
+        const extraDed = (customBoxes || []).filter(cb => cb.category === 'Deductions').reduce((acc, cb) => acc + n(currentBoxes[cb.label]), 0);
+        const otherDeduction = n(s.advance) + n(s.salesDebits) + n(s.underPerformance) + extraDed;
         const totalDeduction =
             professionalTax + n(s.incomeTax) + n(s.providentFund) + n(s.loanDeduction) + otherDeduction;
 
@@ -115,6 +134,25 @@ export default function AddEmployee() {
             [name]: isNumberField ? (value === '' ? null : parseFloat(value)) : value
         };
         setEmployee(computeDerived(updated));
+    };
+
+    const handleCustomBoxChange = (label, value) => {
+        const val = value === '' ? 0 : parseFloat(value);
+        const nextValues = { ...customBoxValues, [label]: val };
+        setCustomBoxValues(nextValues);
+        setEmployee(prev => computeDerived(prev, nextValues));
+    };
+    const persistBoxes = (next) => {
+        setCustomBoxes(next);
+        try { localStorage.setItem('customBoxes', JSON.stringify(next)); } catch {}
+    };
+    const addBox = (label, category) => {
+        const trimmed = (label || '').trim();
+        if (!trimmed) return;
+        const next = [...customBoxes, { id: Date.now(), label: trimmed, category }];
+        persistBoxes(next);
+        if (category === 'Earnings') setNewEarningLabel('');
+        if (category === 'Deductions') setNewDeductionLabel('');
     };
 
     // Fetch name/basic master list
@@ -712,6 +750,17 @@ export default function AddEmployee() {
                                         <div className="form-item"><label htmlFor="perCall">Per-call inc</label><input id="perCall" name="perCall" type="number" value={employee.perCall ?? ''} onChange={handleChange}/></div>
                                         <div className="form-item"><label htmlFor="arrears">Arrears</label><input id="arrears" name="arrears" type="number" value={employee.arrears ?? ''} onChange={handleChange}/></div>
                                         <div className="form-item"><label htmlFor="bonus">Bonus</label><input id="bonus" name="bonus" type="number" value={employee.bonus ?? ''} onChange={handleChange}/></div>
+                                        {customBoxes.filter(cb => cb.category === 'Earnings').map(cb => (
+                                            <div key={cb.id} className="form-item">
+                                                <label>{cb.label}</label>
+                                                <input
+                                                    type="number"
+                                                    value={(customBoxValues[cb.label] ?? '')}
+                                                    onChange={(e) => handleCustomBoxChange(cb.label, e.target.value)}
+                                                />
+                                            </div>
+                                        ))}
+
                                         <div className="form-item"><label>Other allowance</label><input type="number" readOnly aria-readonly="true" value={employee.otherAllowance?.toFixed(2) ?? '0.00'} style={{ background:'#f3f4f6', color:'#6b7280' }}/></div>
                                     </div>
                                 )}
@@ -723,6 +772,17 @@ export default function AddEmployee() {
                                         <div className="form-item"><label htmlFor="professionalTax">Professional Tax</label><input id="professionalTax" name="professionalTax" type="number" value={employee.professionalTax ?? ''} onChange={handleChange}/></div>
                                         <div className="form-item"><label htmlFor="underPerformance">Under Performance</label><input id="underPerformance" name="underPerformance" type="number" value={employee.underPerformance ?? ''} onChange={handleChange}/></div>
                                         <div className="form-item"><label htmlFor="salesDebits">Sales Debits</label><input id="salesDebits" name="salesDebits" type="number" value={employee.salesDebits ?? ''} onChange={handleChange}/></div>
+                                        {customBoxes.filter(cb => cb.category === 'Deductions').map(cb => (
+                                            <div key={cb.id} className="form-item">
+                                                <label>{cb.label}</label>
+                                                <input
+                                                    type="number"
+                                                    value={(customBoxValues[cb.label] ?? '')}
+                                                    onChange={(e) => handleCustomBoxChange(cb.label, e.target.value)}
+                                                />
+                                            </div>
+                                        ))}
+
                                         <div className="form-item"><label>Other deduction</label><input type="number" readOnly aria-readonly="true" value={employee.otherDeduction?.toFixed(2) ?? '0.00'} style={{ background:'#f3f4f6', color:'#6b7280' }}/></div>
                                     </div>
                                 )}
