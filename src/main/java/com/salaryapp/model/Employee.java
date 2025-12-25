@@ -69,6 +69,12 @@ public class Employee {
     @Column(length = 16)
     private String status;
 
+    @Column(columnDefinition = "TEXT")
+    private String customFields; // JSON string for custom boxes
+
+    private Double customAllowanceAmount; // Sum of custom earnings
+    private Double customDeductionAmount; // Sum of custom deductions
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -98,6 +104,15 @@ public class Employee {
 
     public Double getOtherAllowance() { return otherAllowance; }
     public void setOtherAllowance(Double otherAllowance) { this.otherAllowance = otherAllowance; }
+
+    public String getCustomFields() { return customFields; }
+    public void setCustomFields(String customFields) { this.customFields = customFields; }
+
+    public Double getCustomAllowanceAmount() { return customAllowanceAmount; }
+    public void setCustomAllowanceAmount(Double customAllowanceAmount) { this.customAllowanceAmount = customAllowanceAmount; }
+
+    public Double getCustomDeductionAmount() { return customDeductionAmount; }
+    public void setCustomDeductionAmount(Double customDeductionAmount) { this.customDeductionAmount = customDeductionAmount; }
 
     public Double getGrossSalary() { return grossSalary; }
     public void setGrossSalary(Double grossSalary) { this.grossSalary = grossSalary; }

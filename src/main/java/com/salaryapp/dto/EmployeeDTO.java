@@ -50,6 +50,10 @@ public class EmployeeDTO {
     private Double advance;
     private String status;
 
+    private String customFields;
+    private Double customAllowanceAmount;
+    private Double customDeductionAmount;
+
     public EmployeeDTO() {}
 
     public EmployeeDTO(Long id, String name, String department, String designation,
@@ -97,6 +101,15 @@ public class EmployeeDTO {
 
     public Double getBasicSalary() { return basicSalary; }
     public void setBasicSalary(Double basicSalary) { this.basicSalary = basicSalary; }
+
+    public String getCustomFields() { return customFields; }
+    public void setCustomFields(String customFields) { this.customFields = customFields; }
+
+    public Double getCustomAllowanceAmount() { return customAllowanceAmount; }
+    public void setCustomAllowanceAmount(Double customAllowanceAmount) { this.customAllowanceAmount = customAllowanceAmount; }
+
+    public Double getCustomDeductionAmount() { return customDeductionAmount; }
+    public void setCustomDeductionAmount(Double customDeductionAmount) { this.customDeductionAmount = customDeductionAmount; }
 
     public Double getHra() { return hra; }
     public void setHra(Double hra) { this.hra = hra; }

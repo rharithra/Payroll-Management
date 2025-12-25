@@ -190,13 +190,15 @@ public class EmployeeService {
                 safe(employee.getDresscode()) +
                 safe(employee.getAttendanceAllowance()) +
                 safe(employee.getArrears()) +
-                safe(employee.getBonus());
+                safe(employee.getBonus()) +
+                safe(employee.getCustomAllowanceAmount()); // Add custom earnings
         employee.setOtherAllowance(computedOtherAllowance);
 
         double computedOtherDeduction =
                 safe(employee.getAdvance()) +
                 safe(employee.getSalesDebits()) +
-                safe(employee.getUnderPerformance());
+                safe(employee.getUnderPerformance()) +
+                safe(employee.getCustomDeductionAmount()); // Add custom deductions
         employee.setOtherDeduction(computedOtherDeduction);
 
         double grossSalary = basic
@@ -246,6 +248,9 @@ public class EmployeeService {
         e.setSalesDebits(e.getSalesDebits() != null ? e.getSalesDebits() : 0.0);
         e.setUnderPerformance(e.getUnderPerformance() != null ? e.getUnderPerformance() : 0.0);
         e.setAdvance(e.getAdvance() != null ? e.getAdvance() : 0.0);
+        
+        e.setCustomAllowanceAmount(e.getCustomAllowanceAmount() != null ? e.getCustomAllowanceAmount() : 0.0);
+        e.setCustomDeductionAmount(e.getCustomDeductionAmount() != null ? e.getCustomDeductionAmount() : 0.0);
     }
     
     private double safe(Double val) {

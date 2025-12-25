@@ -53,6 +53,8 @@ export default function AddEmployee() {
     const [customBoxValues, setCustomBoxValues] = useState({});
     const [newEarningLabel, setNewEarningLabel] = useState('');
     const [newDeductionLabel, setNewDeductionLabel] = useState('');
+    const [newEmployeeLabel, setNewEmployeeLabel] = useState('');
+    const [newSummaryLabel, setNewSummaryLabel] = useState('');
 
     useEffect(() => {
         try {
@@ -137,7 +139,12 @@ export default function AddEmployee() {
     };
 
     const handleCustomBoxChange = (label, value) => {
-        const val = value === '' ? 0 : parseFloat(value);
+        const box = customBoxes.find(b => b.label === label);
+        const isNumeric = box && (box.category === 'Earnings' || box.category === 'Deductions');
+        let val = value;
+        if (isNumeric) {
+            val = value === '' ? 0 : parseFloat(value);
+        }
         const nextValues = { ...customBoxValues, [label]: val };
         setCustomBoxValues(nextValues);
         setEmployee(prev => computeDerived(prev, nextValues));
@@ -153,6 +160,8 @@ export default function AddEmployee() {
         persistBoxes(next);
         if (category === 'Earnings') setNewEarningLabel('');
         if (category === 'Deductions') setNewDeductionLabel('');
+        if (category === 'Employee') setNewEmployeeLabel('');
+        if (category === 'Summary') setNewSummaryLabel('');
     };
 
     // Fetch name/basic master list
@@ -292,6 +301,20 @@ export default function AddEmployee() {
             }
         }
 
+        const customFieldsList = customBoxes.map(cb => ({
+            label: cb.label,
+            category: cb.category,
+            value: customBoxValues[cb.label]
+        })).filter(x => x.value !== undefined && x.value !== null && x.value !== '' && x.value !== 0);
+
+        const customAllowanceAmount = customFieldsList
+            .filter(x => x.category === 'Earnings')
+            .reduce((acc, x) => acc + (parseFloat(x.value) || 0), 0);
+
+        const customDeductionAmount = customFieldsList
+            .filter(x => x.category === 'Deductions')
+            .reduce((acc, x) => acc + (parseFloat(x.value) || 0), 0);
+
         const dto = {
             name: employee.name,
             designation: employee.designation,
@@ -327,7 +350,10 @@ export default function AddEmployee() {
             otherDeduction: employee.otherDeduction,
             grossSalary: employee.grossSalary,
             totalDeduction: employee.totalDeduction,
-            netSalary: employee.netSalary
+            netSalary: employee.netSalary,
+            customFields: JSON.stringify(customFieldsList),
+            customAllowanceAmount,
+            customDeductionAmount
         };
         try {
             await axios.post('/api/employees', dto, {
@@ -376,6 +402,20 @@ export default function AddEmployee() {
                 return;
             }
         }
+        const customFieldsList = customBoxes.map(cb => ({
+            label: cb.label,
+            category: cb.category,
+            value: n(customBoxValues[cb.label])
+        })).filter(x => x.value !== 0);
+
+        const customAllowanceAmount = customFieldsList
+            .filter(x => x.category === 'Earnings')
+            .reduce((acc, x) => acc + x.value, 0);
+
+        const customDeductionAmount = customFieldsList
+            .filter(x => x.category === 'Deductions')
+            .reduce((acc, x) => acc + x.value, 0);
+
         const dto = {
             name: employee.name,
             designation: employee.designation,
@@ -411,7 +451,10 @@ export default function AddEmployee() {
             otherDeduction: employee.otherDeduction,
             grossSalary: employee.grossSalary,
             totalDeduction: employee.totalDeduction,
-            netSalary: employee.netSalary
+            netSalary: employee.netSalary,
+            customFields: JSON.stringify(customFieldsList),
+            customAllowanceAmount,
+            customDeductionAmount
         };
         try {
             await axios.post('/api/employees', dto, {
@@ -735,6 +778,40 @@ export default function AddEmployee() {
                                             <label htmlFor="dearnessAllowance">Dearness Allowance</label>
                                             <input id="dearnessAllowance" name="dearnessAllowance" type="number" value={employee.dearnessAllowance ?? ''} onChange={handleChange}/>
                                         </div>
+                                        {customBoxes.filter(cb => cb.category === 'Employee').map(cb => (
+                                            <div key={cb.id} className="form-item">
+                                                <label>{cb.label} <button type="button" style={{ fontSize: '0.7em', color: 'red', border: 'none', background: 'none' }} onClick={() => {
+                                                    setCustomBoxes(prev => prev.filter(x => x.id !== cb.id));
+                                                    const next = { ...customBoxValues };
+                                                    delete next[cb.label];
+                                                    setCustomBoxValues(next);
+                                                    setEmployee(prevEmp => computeDerived(prevEmp, next));
+                                                }}>(x)</button></label>
+                                                <input
+                                                    type="text"
+                                                    value={(customBoxValues[cb.label] ?? '')}
+                                                    onChange={(e) => handleCustomBoxChange(cb.label, e.target.value)}
+                                                />
+                                            </div>
+                                        ))}
+                                        <div className="form-item" style={{ marginTop: 12, borderTop: '1px dashed #ccc', paddingTop: 8 }}>
+                                            <div style={{ display: 'flex', gap: 8 }}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="New employee label"
+                                                    value={newEmployeeLabel}
+                                                    onChange={(e) => setNewEmployeeLabel(e.target.value)}
+                                                    style={{ flex: 1 }}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-sm btn-secondary"
+                                                    onClick={() => addBox(newEmployeeLabel, 'Employee')}
+                                                >
+                                                    Add
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
 
@@ -752,7 +829,13 @@ export default function AddEmployee() {
                                         <div className="form-item"><label htmlFor="bonus">Bonus</label><input id="bonus" name="bonus" type="number" value={employee.bonus ?? ''} onChange={handleChange}/></div>
                                         {customBoxes.filter(cb => cb.category === 'Earnings').map(cb => (
                                             <div key={cb.id} className="form-item">
-                                                <label>{cb.label}</label>
+                                                <label>{cb.label} <button type="button" style={{ fontSize: '0.7em', color: 'red', border: 'none', background: 'none' }} onClick={() => {
+                                                    setCustomBoxes(prev => prev.filter(x => x.id !== cb.id));
+                                                    const next = { ...customBoxValues };
+                                                    delete next[cb.label];
+                                                    setCustomBoxValues(next);
+                                                    setEmployee(prevEmp => computeDerived(prevEmp, next));
+                                                }}>(x)</button></label>
                                                 <input
                                                     type="number"
                                                     value={(customBoxValues[cb.label] ?? '')}
@@ -760,6 +843,24 @@ export default function AddEmployee() {
                                                 />
                                             </div>
                                         ))}
+                                        <div className="form-item" style={{ marginTop: 12, borderTop: '1px dashed #ccc', paddingTop: 8 }}>
+                                            <div style={{ display: 'flex', gap: 8 }}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="New earning label"
+                                                    value={newEarningLabel}
+                                                    onChange={(e) => setNewEarningLabel(e.target.value)}
+                                                    style={{ flex: 1 }}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-sm btn-secondary"
+                                                    onClick={() => addBox(newEarningLabel, 'Earnings')}
+                                                >
+                                                    Add
+                                                </button>
+                                            </div>
+                                        </div>
 
                                         <div className="form-item"><label>Other allowance</label><input type="number" readOnly aria-readonly="true" value={employee.otherAllowance?.toFixed(2) ?? '0.00'} style={{ background:'#f3f4f6', color:'#6b7280' }}/></div>
                                     </div>
@@ -774,7 +875,13 @@ export default function AddEmployee() {
                                         <div className="form-item"><label htmlFor="salesDebits">Sales Debits</label><input id="salesDebits" name="salesDebits" type="number" value={employee.salesDebits ?? ''} onChange={handleChange}/></div>
                                         {customBoxes.filter(cb => cb.category === 'Deductions').map(cb => (
                                             <div key={cb.id} className="form-item">
-                                                <label>{cb.label}</label>
+                                                <label>{cb.label} <button type="button" style={{ fontSize: '0.7em', color: 'red', border: 'none', background: 'none' }} onClick={() => {
+                                                    setCustomBoxes(prev => prev.filter(x => x.id !== cb.id));
+                                                    const next = { ...customBoxValues };
+                                                    delete next[cb.label];
+                                                    setCustomBoxValues(next);
+                                                    setEmployee(prevEmp => computeDerived(prevEmp, next));
+                                                }}>(x)</button></label>
                                                 <input
                                                     type="number"
                                                     value={(customBoxValues[cb.label] ?? '')}
@@ -782,6 +889,24 @@ export default function AddEmployee() {
                                                 />
                                             </div>
                                         ))}
+                                        <div className="form-item" style={{ marginTop: 12, borderTop: '1px dashed #ccc', paddingTop: 8 }}>
+                                            <div style={{ display: 'flex', gap: 8 }}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="New deduction label"
+                                                    value={newDeductionLabel}
+                                                    onChange={(e) => setNewDeductionLabel(e.target.value)}
+                                                    style={{ flex: 1 }}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-sm btn-secondary"
+                                                    onClick={() => addBox(newDeductionLabel, 'Deductions')}
+                                                >
+                                                    Add
+                                                </button>
+                                            </div>
+                                        </div>
 
                                         <div className="form-item"><label>Other deduction</label><input type="number" readOnly aria-readonly="true" value={employee.otherDeduction?.toFixed(2) ?? '0.00'} style={{ background:'#f3f4f6', color:'#6b7280' }}/></div>
                                     </div>
@@ -794,6 +919,41 @@ export default function AddEmployee() {
                                         <div className="form-item"><label>Total deductions</label><input type="number" readOnly aria-readonly="true" value={employee.totalDeduction?.toFixed(2) ?? '0.00'} style={{ background:'#f3f4f6', color:'#6b7280' }}/></div>
                                         <div className="form-item"><label>Net salary</label><input type="number" readOnly aria-readonly="true" value={employee.netSalary?.toFixed(2) ?? '0.00'} style={{ background:'#f3f4f6', color:'#6b7280' }}/></div>
                                         <div className="form-item"><label htmlFor="salaryDate">Salary Date</label><input id="salaryDate" name="salaryDate" type="date" value={employee.salaryDate ?? ''} onChange={handleChange}/></div>
+                                        
+                                        {customBoxes.filter(cb => cb.category === 'Summary').map(cb => (
+                                            <div key={cb.id} className="form-item">
+                                                <label>{cb.label} <button type="button" style={{ fontSize: '0.7em', color: 'red', border: 'none', background: 'none' }} onClick={() => {
+                                                    setCustomBoxes(prev => prev.filter(x => x.id !== cb.id));
+                                                    const next = { ...customBoxValues };
+                                                    delete next[cb.label];
+                                                    setCustomBoxValues(next);
+                                                    setEmployee(prevEmp => computeDerived(prevEmp, next));
+                                                }}>(x)</button></label>
+                                                <input
+                                                    type="text"
+                                                    value={(customBoxValues[cb.label] ?? '')}
+                                                    onChange={(e) => handleCustomBoxChange(cb.label, e.target.value)}
+                                                />
+                                            </div>
+                                        ))}
+                                        <div className="form-item" style={{ marginTop: 12, borderTop: '1px dashed #ccc', paddingTop: 8 }}>
+                                            <div style={{ display: 'flex', gap: 8 }}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="New summary label"
+                                                    value={newSummaryLabel}
+                                                    onChange={(e) => setNewSummaryLabel(e.target.value)}
+                                                    style={{ flex: 1 }}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-sm btn-secondary"
+                                                    onClick={() => addBox(newSummaryLabel, 'Summary')}
+                                                >
+                                                    Add
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </div>

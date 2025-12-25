@@ -50,7 +50,27 @@ function EditEmployee() {
     });
 
     const n = (v) => (v == null ? 0 : v);
-    const computeDerived = useCallback((s) => {
+
+    const [error, setError] = useState(null);
+    const [customBoxes, setCustomBoxes] = useState([]);
+    const [customBoxValues, setCustomBoxValues] = useState({});
+    const [newEarningLabel, setNewEarningLabel] = useState('');
+    const [newDeductionLabel, setNewDeductionLabel] = useState('');
+    const [newEmployeeLabel, setNewEmployeeLabel] = useState('');
+    const [newSummaryLabel, setNewSummaryLabel] = useState('');
+
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem('customBoxes');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                const normalized = Array.isArray(parsed) ? parsed.map(x => ({ id: x.id, label: x.label, category: x.category || 'Earnings' })) : [];
+                setCustomBoxes(normalized);
+            }
+        } catch {}
+    }, []);
+
+    const computeDerived = useCallback((s, currentBoxes = customBoxValues, boxDefs = customBoxes) => {
         const days = n(s.days);
         const core =
             n(s.basicSalary) +
@@ -66,6 +86,8 @@ function EditEmployee() {
             n(s.perCall) +
             n(s.attendanceAllowance);
 
+        const extraEarn = (boxDefs || []).filter(cb => cb.category === 'Earnings').reduce((acc, cb) => acc + n(currentBoxes[cb.label]), 0);
+
         const otherAllowance =
             n(s.leads) +
             n(s.areaAllowance) +
@@ -74,45 +96,103 @@ function EditEmployee() {
             n(s.review) +
             n(s.dresscode) +
             n(s.arrears) +
-            n(s.bonus);
+            n(s.bonus) +
+            extraEarn;
 
         const grossSalary = proratedCore + nonProrated + otherAllowance;
 
-        const otherDeduction = n(s.advance) + n(s.salesDebits) + n(s.underPerformance);
+        const extraDed = (boxDefs || []).filter(cb => cb.category === 'Deductions').reduce((acc, cb) => acc + n(currentBoxes[cb.label]), 0);
+        const otherDeduction = n(s.advance) + n(s.salesDebits) + n(s.underPerformance) + extraDed;
         const totalDeduction =
             n(s.professionalTax) + n(s.incomeTax) + n(s.providentFund) + n(s.loanDeduction) + otherDeduction;
 
         const netSalary = grossSalary - totalDeduction;
 
         return { ...s, otherAllowance, otherDeduction, grossSalary, totalDeduction, netSalary };
-    }, []);
+    }, []); // No dependencies now (passed as args)
+
+    const handleCustomBoxChange = (label, value) => {
+        const box = customBoxes.find(b => b.label === label);
+        const isNumeric = box && (box.category === 'Earnings' || box.category === 'Deductions');
+        let val = value;
+        if (isNumeric) {
+            val = value === '' ? 0 : parseFloat(value);
+        }
+        const nextValues = { ...customBoxValues, [label]: val };
+        setCustomBoxValues(nextValues);
+        setEmployee(prev => computeDerived(prev, nextValues, customBoxes));
+    };
+
+    const persistBoxes = (next) => {
+        setCustomBoxes(next);
+        try { localStorage.setItem('customBoxes', JSON.stringify(next)); } catch {}
+    };
+
+    const addBox = (label, category) => {
+        const trimmed = (label || '').trim();
+        if (!trimmed) return;
+        const next = [...customBoxes, { id: Date.now(), label: trimmed, category }];
+        persistBoxes(next);
+        if (category === 'Earnings') setNewEarningLabel('');
+        if (category === 'Deductions') setNewDeductionLabel('');
+        if (category === 'Employee') setNewEmployeeLabel('');
+        if (category === 'Summary') setNewSummaryLabel('');
+    };
 
     useEffect(() => {
         const load = async () => {
             try {
                 const res = await axios.get(`/api/employees/${id}`);
-                setEmployee(computeDerived(res.data));
+                const data = res.data;
+                
+                // Parse custom fields
+                let loadedValues = {};
+                let loadedBoxes = [];
+                // Start with localStorage boxes
+                try {
+                    const saved = localStorage.getItem('customBoxes');
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        loadedBoxes = Array.isArray(parsed) ? parsed.map(x => ({ id: x.id, label: x.label, category: x.category || 'Earnings' })) : [];
+                    }
+                } catch {}
+
+                if (data.customFields) {
+                    try {
+                        const parsed = JSON.parse(data.customFields);
+                        if (Array.isArray(parsed)) {
+                            parsed.forEach(p => {
+                                loadedValues[p.label] = p.value;
+                            });
+                            // Merge missing boxes
+                            const existingLabels = new Set(loadedBoxes.map(x => x.label));
+                            const newBoxes = parsed.filter(p => !existingLabels.has(p.label)).map(p => ({
+                                id: Date.now() + Math.random(),
+                                label: p.label,
+                                category: p.category
+                            }));
+                            loadedBoxes = [...loadedBoxes, ...newBoxes];
+                        }
+                    } catch {}
+                }
+                
+                setCustomBoxes(loadedBoxes);
+                setCustomBoxValues(loadedValues);
+                setEmployee(computeDerived(data, loadedValues, loadedBoxes));
             } catch (err) {
                 setError(err?.response?.data?.message || err.message);
             }
         };
         load();
-    }, [id, computeDerived]); // include computeDerived to satisfy ESLint
+    }, [id, computeDerived]);
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
-        const isNumberField = ![
-            'name','designation','department','role','salaryDate'
-        ].includes(name);
-        const updated = {
-            ...employee,
-            [name]: isNumberField ? (value === '' ? null : parseFloat(value)) : value
-        };
-        setEmployee(computeDerived(updated));
+        const { name, value, type } = e.target;
+        const val = type === 'number' ? (value === '' ? null : parseFloat(value)) : value;
+        setEmployee(prev => computeDerived({ ...prev, [name]: val }, customBoxValues, customBoxes));
     };
 
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState(null);
     const navigate = useNavigate();
 
     const role = localStorage.getItem('role') || '';
@@ -168,6 +248,20 @@ function EditEmployee() {
             return;
         }
 
+        const customFieldsList = customBoxes.map(cb => ({
+            label: cb.label,
+            category: cb.category,
+            value: customBoxValues[cb.label]
+        })).filter(x => x.value !== undefined && x.value !== null && x.value !== '' && x.value !== 0);
+
+        const customAllowanceAmount = customFieldsList
+            .filter(x => x.category === 'Earnings')
+            .reduce((acc, x) => acc + (parseFloat(x.value) || 0), 0);
+
+        const customDeductionAmount = customFieldsList
+            .filter(x => x.category === 'Deductions')
+            .reduce((acc, x) => acc + (parseFloat(x.value) || 0), 0);
+
         const payload = {
             id: employee.id,
             name: employee.name,
@@ -175,9 +269,7 @@ function EditEmployee() {
             department: employee.department,
             role: employee.role,
             salaryDate: employee.salaryDate,
-            employeeId: employee.employeeId,         // NEW
-
-            // Inputs (align with Add)
+            employeeId: employee.employeeId,
             days: employee.days,
             basicSalary: employee.basicSalary,
             hra: employee.hra,
@@ -195,8 +287,6 @@ function EditEmployee() {
             attendanceAllowance: employee.attendanceAllowance,
             arrears: employee.arrears,
             bonus: employee.bonus,
-
-            // Deductions
             professionalTax: employee.professionalTax,
             incomeTax: employee.incomeTax,
             providentFund: employee.providentFund,
@@ -204,13 +294,14 @@ function EditEmployee() {
             loanDeduction: employee.loanDeduction,
             salesDebits: employee.salesDebits,
             underPerformance: employee.underPerformance,
-
-            // Derived
             otherAllowance: employee.otherAllowance,
             otherDeduction: employee.otherDeduction,
             grossSalary: employee.grossSalary,
             totalDeduction: employee.totalDeduction,
-            netSalary: employee.netSalary
+            netSalary: employee.netSalary,
+            customFields: JSON.stringify(customFieldsList),
+            customAllowanceAmount,
+            customDeductionAmount
         };
 
         try {
@@ -312,6 +403,41 @@ function EditEmployee() {
                                 value={employee.dearnessAllowance ?? ''}
                                 onChange={handleChange}
                             />
+                        </div>
+
+                        {customBoxes.filter(cb => cb.category === 'Employee').map(cb => (
+                            <div key={cb.id} className="form-item">
+                                <label>{cb.label} <button type="button" style={{ fontSize: '0.7em', color: 'red', border: 'none', background: 'none' }} onClick={() => {
+                                    setCustomBoxes(prev => prev.filter(x => x.id !== cb.id));
+                                    const next = { ...customBoxValues };
+                                    delete next[cb.label];
+                                    setCustomBoxValues(next);
+                                    setEmployee(prevEmp => computeDerived(prevEmp, next, customBoxes.filter(x => x.id !== cb.id)));
+                                }}>(x)</button></label>
+                                <input
+                                    type="text"
+                                    value={(customBoxValues[cb.label] ?? '')}
+                                    onChange={(e) => handleCustomBoxChange(cb.label, e.target.value)}
+                                />
+                            </div>
+                        ))}
+                        <div className="form-item" style={{ marginTop: 12, borderTop: '1px dashed #ccc', paddingTop: 8 }}>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <input
+                                    type="text"
+                                    placeholder="New employee label"
+                                    value={newEmployeeLabel}
+                                    onChange={(e) => setNewEmployeeLabel(e.target.value)}
+                                    style={{ flex: 1 }}
+                                />
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-secondary"
+                                    onClick={() => addBox(newEmployeeLabel, 'Employee')}
+                                >
+                                    Add
+                                </button>
+                            </div>
                         </div>
 
                         <div className="form-item">
@@ -483,6 +609,41 @@ function EditEmployee() {
                             />
                         </div>
 
+                        {customBoxes.filter(cb => cb.category === 'Earnings').map(cb => (
+                            <div key={cb.id} className="form-item">
+                                <label>{cb.label} <button type="button" style={{ fontSize: '0.7em', color: 'red', border: 'none', background: 'none' }} onClick={() => {
+                                    setCustomBoxes(prev => prev.filter(x => x.id !== cb.id));
+                                    const next = { ...customBoxValues };
+                                    delete next[cb.label];
+                                    setCustomBoxValues(next);
+                                    setEmployee(prevEmp => computeDerived(prevEmp, next, customBoxes.filter(x => x.id !== cb.id)));
+                                }}>(x)</button></label>
+                                <input
+                                    type="number"
+                                    value={(customBoxValues[cb.label] ?? '')}
+                                    onChange={(e) => handleCustomBoxChange(cb.label, e.target.value)}
+                                />
+                            </div>
+                        ))}
+                        <div className="form-item" style={{ marginTop: 12, borderTop: '1px dashed #ccc', paddingTop: 8 }}>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <input
+                                    type="text"
+                                    placeholder="New earning label"
+                                    value={newEarningLabel}
+                                    onChange={(e) => setNewEarningLabel(e.target.value)}
+                                    style={{ flex: 1 }}
+                                />
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-secondary"
+                                    onClick={() => addBox(newEarningLabel, 'Earnings')}
+                                >
+                                    Add
+                                </button>
+                            </div>
+                        </div>
+
                         <div className="form-item">
                             <label htmlFor="grossSalary">Grosspay (auto)</label>
                             <input
@@ -554,6 +715,41 @@ function EditEmployee() {
                             />
                         </div>
 
+                        {customBoxes.filter(cb => cb.category === 'Deductions').map(cb => (
+                            <div key={cb.id} className="form-item">
+                                <label>{cb.label} <button type="button" style={{ fontSize: '0.7em', color: 'red', border: 'none', background: 'none' }} onClick={() => {
+                                    setCustomBoxes(prev => prev.filter(x => x.id !== cb.id));
+                                    const next = { ...customBoxValues };
+                                    delete next[cb.label];
+                                    setCustomBoxValues(next);
+                                    setEmployee(prevEmp => computeDerived(prevEmp, next, customBoxes.filter(x => x.id !== cb.id)));
+                                }}>(x)</button></label>
+                                <input
+                                    type="number"
+                                    value={(customBoxValues[cb.label] ?? '')}
+                                    onChange={(e) => handleCustomBoxChange(cb.label, e.target.value)}
+                                />
+                            </div>
+                        ))}
+                        <div className="form-item" style={{ marginTop: 12, borderTop: '1px dashed #ccc', paddingTop: 8 }}>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <input
+                                    type="text"
+                                    placeholder="New deduction label"
+                                    value={newDeductionLabel}
+                                    onChange={(e) => setNewDeductionLabel(e.target.value)}
+                                    style={{ flex: 1 }}
+                                />
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-secondary"
+                                    onClick={() => addBox(newDeductionLabel, 'Deductions')}
+                                >
+                                    Add
+                                </button>
+                            </div>
+                        </div>
+
                         <div className="form-item">
                             <label htmlFor="totalDeduction">Total Deduction (auto)</label>
                             <input
@@ -586,6 +782,41 @@ function EditEmployee() {
                                 value={employee.salaryDate ?? ''}
                                 onChange={handleChange}
                             />
+                        </div>
+
+                        {customBoxes.filter(cb => cb.category === 'Summary').map(cb => (
+                            <div key={cb.id} className="form-item">
+                                <label>{cb.label} <button type="button" style={{ fontSize: '0.7em', color: 'red', border: 'none', background: 'none' }} onClick={() => {
+                                    setCustomBoxes(prev => prev.filter(x => x.id !== cb.id));
+                                    const next = { ...customBoxValues };
+                                    delete next[cb.label];
+                                    setCustomBoxValues(next);
+                                    setEmployee(prevEmp => computeDerived(prevEmp, next, customBoxes.filter(x => x.id !== cb.id)));
+                                }}>(x)</button></label>
+                                <input
+                                    type="text"
+                                    value={(customBoxValues[cb.label] ?? '')}
+                                    onChange={(e) => handleCustomBoxChange(cb.label, e.target.value)}
+                                />
+                            </div>
+                        ))}
+                        <div className="form-item" style={{ marginTop: 12, borderTop: '1px dashed #ccc', paddingTop: 8 }}>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <input
+                                    type="text"
+                                    placeholder="New summary label"
+                                    value={newSummaryLabel}
+                                    onChange={(e) => setNewSummaryLabel(e.target.value)}
+                                    style={{ flex: 1 }}
+                                />
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-secondary"
+                                    onClick={() => addBox(newSummaryLabel, 'Summary')}
+                                >
+                                    Add
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
