@@ -1,17 +1,21 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import axios from 'axios';
-import EmployeeList from './components/EmployeeList';
+
+// Eager load critical components
 import Home from './components/Home';
-import AddEmployee from './components/AddEmployee';
-import EditEmployee from './components/EditEmployee';
-import EmployeeMasterForm from './components/EmployeeMasterForm';
-import Payslip from './components/Payslip'; // NEW
-import EmployeeMasterList from './components/EmployeeMasterList'; // NEW
 import Login from './components/Login';
-import Register from './components/Register';
+
+// Lazy load other components for performance
+const EmployeeList = lazy(() => import('./components/EmployeeList'));
+const AddEmployee = lazy(() => import('./components/AddEmployee'));
+const EditEmployee = lazy(() => import('./components/EditEmployee'));
+const EmployeeMasterForm = lazy(() => import('./components/EmployeeMasterForm'));
+const Payslip = lazy(() => import('./components/Payslip'));
+const EmployeeMasterList = lazy(() => import('./components/EmployeeMasterList'));
+const Register = lazy(() => import('./components/Register'));
 
 // Set base URL for API requests
 // In production (Hostinger), this should be the Render Backend URL.
@@ -57,6 +61,7 @@ function App() {
       </nav>
 
       <div style={{ padding: 12 }}>
+        <Suspense fallback={<div className="text-center mt-5"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div></div>}>
         <Routes>
           <Route path="/" element={authed ? <Home /> : <Navigate to="/login" replace />} />
           <Route path="/add" element={<RequireAuth><AddEmployee /></RequireAuth>} />
@@ -70,6 +75,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="*" element={<div>Not Found</div>} />
         </Routes>
+        </Suspense>
       </div>
     </BrowserRouter>
   );
