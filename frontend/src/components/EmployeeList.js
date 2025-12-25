@@ -19,11 +19,12 @@ function EmployeeList() {
 
   useEffect(() => {
     fetchEmployees();
-  }, []);
+  }, [selectedMonth, selectedYear]);
 
   const fetchEmployees = async () => {
+    setLoading(true);
     try {
-      const response = await axios.get('/api/employees');
+      const response = await axios.get(`/api/employees?year=${selectedYear}&month=${selectedMonth}`);
       setEmployees(response.data);
       setLoading(false);
     } catch (err) {
@@ -171,21 +172,7 @@ function EmployeeList() {
   const visibleEmployees = (employees || []).filter((e) => {
     // 1. Basic empty check
     const hasData = allColumns.some((col) => isNonEmpty(e[col.key]));
-    if (!hasData) return false;
-
-    // 2. Month/Year filter
-    // e.salaryDate is expected to be "YYYY-MM-DD" from backend
-    if (!e.salaryDate) return false; // Hide rows with no date if filter is active? Or show? 
-    // Usually we want to filter STRICTLY by month if selected.
-    
-    const d = new Date(e.salaryDate);
-    if (isNaN(d.getTime())) return false;
-    
-    // d.getMonth() is 0-indexed (0=Jan, 11=Dec). selectedMonth is 1-12.
-    const matchMonth = (d.getMonth() + 1) === parseInt(selectedMonth);
-    const matchYear = d.getFullYear() === parseInt(selectedYear);
-    
-    return matchMonth && matchYear;
+    return hasData;
   });
 
   // Show ALL columns (even if some cells are blank)

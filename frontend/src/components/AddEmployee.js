@@ -234,21 +234,25 @@ export default function AddEmployee() {
             return;
         }
         {
-            const ym = (employee.salaryDate || '').slice(0, 7);
-            const res = await axios.get('/api/employees');
-            const dup = (res.data || []).some((r) =>
-                String(r.employeeId || '').trim() === String(employee.employeeId).trim() &&
-                String(r.salaryDate || '').slice(0, 7) === ym
-            );
-            if (dup) {
-                if (lastSubmittedKey && lastSubmittedKey === submitKey && (Date.now() - lastSubmittedAt) < 8000) {
+            const d = new Date(employee.salaryDate || new Date());
+            const year = d.getFullYear();
+            const month = d.getMonth() + 1;
+            try {
+                const res = await axios.get(`/api/employees/exists?employeeId=${encodeURIComponent(employee.employeeId)}&year=${year}&month=${month}`);
+                if (res.data.exists) {
+                    if (lastSubmittedKey && lastSubmittedKey === submitKey && (Date.now() - lastSubmittedAt) < 8000) {
+                        setLoading(false);
+                        return;
+                    }
+                    setError('The salary for the same employee name has already been recorded for this month. Kindly verify the Employee ID');
+                    setShowErrorModal(true);
                     setLoading(false);
                     return;
                 }
-                setError('The salary for the same employee name has already been recorded for this month. Kindly verify the Employee ID');
-                setShowErrorModal(true);
-                setLoading(false);
-                return;
+            } catch (err) {
+                console.error('Duplicate check failed', err);
+                // Optionally block or allow if check fails? 
+                // Allowing it is safer for UX if API is down, but risk of dupes.
             }
         }
 

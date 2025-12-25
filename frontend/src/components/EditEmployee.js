@@ -218,13 +218,23 @@ function EditEmployee() {
             if (!employee.employeeId || String(employee.employeeId).trim() === '') {
                 throw new Error('Please select employee from list');
             }
-            const ym = (employee.salaryDate || '').slice(0, 7);
-            const res = await axios.get('/api/employees');
+            const d = new Date(employee.salaryDate || new Date());
+            const year = d.getFullYear();
+            const month = d.getMonth() + 1;
+            
+            // We need to check if ANY entry exists for this emp/month, excluding CURRENT record
+            // The efficient API returns true/false if ANY exists.
+            // If we are updating, we need to know if *another* one exists.
+            // The current simple "exists" API doesn't exclude ID.
+            // So we might need to fallback to fetching matching records (which should be few, e.g. 1)
+            
+            // Use getEmployeesByMonth to narrow down
+            const res = await axios.get(`/api/employees?year=${year}&month=${month}`);
             const dup = (res.data || []).some((r) =>
                 String(r.employeeId || '').trim() === String(employee.employeeId).trim() &&
-                String(r.salaryDate || '').slice(0, 7) === ym &&
                 r.id !== employee.id
             );
+            
             if (dup) {
                 throw new Error('Salary already exists for this employee in this month');
             }
