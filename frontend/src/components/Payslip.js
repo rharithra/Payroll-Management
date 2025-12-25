@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useSearchParams, Link } from 'react-router-dom';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 function Payslip() {
   const [employees, setEmployees] = useState([]);
@@ -131,12 +129,16 @@ function Payslip() {
   const roundInt = (v) => Math.round(Number(v ?? 0));
 
   const handleDownloadPdf = async () => {
-      const el = document.getElementById('print-area');
-      if (!el) return;
-      const canvas = await html2canvas(el, { scale: 2, useCORS: true });
-      const imgData = canvas.toDataURL('image/png');
-  
-      const pdf = new jsPDF('p', 'mm', 'a4');
+    const el = document.getElementById('print-area');
+    if (!el) return;
+    
+    const html2canvas = (await import('html2canvas')).default;
+    const jsPDF = (await import('jspdf')).default;
+    
+    const canvas = await html2canvas(el, { scale: 2, useCORS: true });
+    const imgData = canvas.toDataURL('image/png');
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
   

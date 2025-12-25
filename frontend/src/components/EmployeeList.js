@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import * as XLSX from 'xlsx';
 
 function EmployeeList() {
   const [employees, setEmployees] = useState([]);
@@ -274,7 +273,8 @@ function EmployeeList() {
   };
 
   // XLSX download (uses visible rows/columns)
-  const downloadXlsx = () => {
+  const downloadXlsx = async () => {
+    const XLSX = await import('xlsx');
     const rows = visibleEmployees.map(e => {
       const obj = {};
       visibleColumns.forEach(c => {
