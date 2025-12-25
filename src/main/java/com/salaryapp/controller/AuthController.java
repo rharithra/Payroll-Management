@@ -3,6 +3,7 @@ package com.salaryapp.controller;
 import com.salaryapp.model.AppUser;
 import com.salaryapp.repository.AppUserRepository;
 import com.salaryapp.security.JwtTokenProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,6 +20,7 @@ public class AuthController {
     private final PasswordEncoder encoder;
     private final JwtTokenProvider jwt;
 
+    @Autowired
     public AuthController(AppUserRepository users, PasswordEncoder encoder, JwtTokenProvider jwt) {
         this.users = users;
         this.encoder = encoder;
@@ -26,12 +28,13 @@ public class AuthController {
     }
 
     @PostMapping(value = "/register", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> register(@RequestBody Map<String, String> body) {
-        String username = String.valueOf(body.get("username")).trim();
-        String password = String.valueOf(body.get("password"));
-        String role = String.valueOf(body.getOrDefault("role", "EMPLOYEE")).toUpperCase();
+    public ResponseEntity<?> register(@RequestBody Map<String, Object> body) {
+        String username = body.get("username") != null ? String.valueOf(body.get("username")).trim() : "";
+        String password = body.get("password") != null ? String.valueOf(body.get("password")) : "";
+        String role = body.get("role") != null ? String.valueOf(body.get("role")).toUpperCase() : "EMPLOYEE";
+        
         if (username.isEmpty() || password.isEmpty()) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(Map.of("error", "Username and password are required"));
         }
         if (users.existsByUsername(username)) {
             return ResponseEntity.status(409).build();
@@ -45,9 +48,13 @@ public class AuthController {
     }
 
     @PostMapping(value = "/login", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> login(@RequestBody Map<String, String> body) {
-        String username = String.valueOf(body.get("username")).trim();
-        String password = String.valueOf(body.get("password"));
+    public ResponseEntity<?> login(@RequestBody Map<String, Object> body) {
+        String username = body.get("username") != null ? String.valueOf(body.get("username")).trim() : "";
+        String password = body.get("password") != null ? String.valueOf(body.get("password")) : "";
+        
+        if (username.isEmpty() || password.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Username and password are required"));
+        }
         Optional<AppUser> found = users.findByUsername(username);
         if (found.isEmpty()) {
             return ResponseEntity.status(401).build();
