@@ -23,6 +23,7 @@ function EmployeeList() {
 
   const fetchEmployees = async () => {
     setLoading(true);
+    setError(null);
     try {
       const response = await axios.get(`/api/employees?year=${selectedYear}&month=${selectedMonth}`);
       setEmployees(response.data);
