@@ -403,13 +403,7 @@ function EditEmployee() {
 
                         {customBoxes.filter(cb => cb.category === 'Employee').map(cb => (
                             <div key={cb.id} className="form-item">
-                                <label>{cb.label} <button type="button" style={{ fontSize: '0.7em', color: 'red', border: 'none', background: 'none' }} onClick={() => {
-                                    setCustomBoxes(prev => prev.filter(x => x.id !== cb.id));
-                                    const next = { ...customBoxValues };
-                                    delete next[cb.label];
-                                    setCustomBoxValues(next);
-                                    setEmployee(prevEmp => computeDerived(prevEmp, next, customBoxes.filter(x => x.id !== cb.id)));
-                                }}>(x)</button></label>
+                                <label>{cb.label}</label>
                                 <input
                                     type="text"
                                     value={(customBoxValues[cb.label] ?? '')}
@@ -731,13 +725,7 @@ function EditEmployee() {
 
                         {customBoxes.filter(cb => cb.category === 'Summary').map(cb => (
                             <div key={cb.id} className="form-item">
-                                <label>{cb.label} <button type="button" style={{ fontSize: '0.7em', color: 'red', border: 'none', background: 'none' }} onClick={() => {
-                                    setCustomBoxes(prev => prev.filter(x => x.id !== cb.id));
-                                    const next = { ...customBoxValues };
-                                    delete next[cb.label];
-                                    setCustomBoxValues(next);
-                                    setEmployee(prevEmp => computeDerived(prevEmp, next, customBoxes.filter(x => x.id !== cb.id)));
-                                }}>(x)</button></label>
+                                <label>{cb.label}</label>
                                 <input
                                     type="text"
                                     value={(customBoxValues[cb.label] ?? '')}

@@ -4,6 +4,8 @@ import com.salaryapp.dto.EmployeeDTO;
 
 import com.salaryapp.service.EmployeeService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -36,20 +38,44 @@ public class EmployeeController {
     private EmployeeService employeeService;
     
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<EmployeeDTO>> getAllEmployees() {
-        List<EmployeeDTO> list = employeeService.getAllEmployees();
+    public ResponseEntity<?> getAllEmployees(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size
+    ) {
+        if (page != null && size != null) {
+            Pageable pageable = PageRequest.of(page, size);
+            if (year != null && month != null) {
+                return ResponseEntity.ok(employeeService.getEmployeesByMonth(year, month, pageable));
+            } else {
+                return ResponseEntity.ok(employeeService.getAllEmployees(pageable));
+            }
+        }
+
+        List<EmployeeDTO> list;
+        if (year != null && month != null) {
+            list = employeeService.getEmployeesByMonth(year, month);
+        } else {
+            list = employeeService.getAllEmployees();
+        }
         log.info("/api/employees size={}", list != null ? list.size() : 0);
         return ResponseEntity.ok(list);
+    }
+
+    @GetMapping(value = "/exists", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Boolean>> checkExists(
+            @RequestParam String employeeId,
+            @RequestParam int year,
+            @RequestParam int month
+    ) {
+        boolean exists = employeeService.exists(employeeId, year, month);
+        return ResponseEntity.ok(java.util.Collections.singletonMap("exists", exists));
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<EmployeeDTO> getEmployeeById(@PathVariable Long id) {
         return ResponseEntity.ok(employeeService.getEmployeeById(id));
-    }
-
-    @GetMapping(value = "/masters", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<java.util.List<com.salaryapp.dto.EmployeeMasterDTO>> getMasters() {
-        return ResponseEntity.ok(employeeService.getEmployeeMasters());
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)

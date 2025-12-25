@@ -8,6 +8,8 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -23,16 +25,19 @@ public class EmployeeService {
     @jakarta.annotation.PostConstruct
     public void backfillSalaryMonth() {
         try {
-            java.util.List<Employee> all = employeeRepository.findAll();
+            // Only fetch records that need update
+            java.util.List<Employee> pending = employeeRepository.findBySalaryMonthIsNull();
+            if (pending.isEmpty()) return;
+            
             boolean changed = false;
-            for (Employee e : all) {
-                if (e.getSalaryMonth() == null && e.getSalaryDate() != null) {
+            for (Employee e : pending) {
+                if (e.getSalaryDate() != null) {
                     e.setSalaryMonth(java.time.YearMonth.from(e.getSalaryDate()).toString());
                     changed = true;
                 }
             }
             if (changed) {
-                employeeRepository.saveAll(all);
+                employeeRepository.saveAll(pending);
             }
         } catch (Exception ignore) {
             // no-op
@@ -43,6 +48,32 @@ public class EmployeeService {
         return employeeRepository.findAll().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
+    }
+
+    public Page<EmployeeDTO> getAllEmployees(Pageable pageable) {
+        return employeeRepository.findAll(pageable)
+                .map(this::convertToDTO);
+    }
+
+    public List<EmployeeDTO> getEmployeesByMonth(int year, int month) {
+        java.time.LocalDate start = java.time.LocalDate.of(year, month, 1);
+        java.time.LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
+        return employeeRepository.findAllBySalaryDateBetween(start, end).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public Page<EmployeeDTO> getEmployeesByMonth(int year, int month, Pageable pageable) {
+        java.time.LocalDate start = java.time.LocalDate.of(year, month, 1);
+        java.time.LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
+        return employeeRepository.findAllBySalaryDateBetween(start, end, pageable)
+                .map(this::convertToDTO);
+    }
+
+    public boolean exists(String employeeId, int year, int month) {
+        java.time.LocalDate start = java.time.LocalDate.of(year, month, 1);
+        java.time.LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
+        return employeeRepository.existsByEmployeeIdAndSalaryDateBetween(employeeId, start, end);
     }
     
     public EmployeeDTO getEmployeeById(Long id) {
@@ -267,34 +298,5 @@ public class EmployeeService {
         Employee employee = new Employee();
         BeanUtils.copyProperties(employeeDTO, employee);
         return employee;
-    }
-
-    public java.util.List<com.salaryapp.dto.EmployeeMasterDTO> getEmployeeMasters() {
-        java.util.List<com.salaryapp.model.Employee> all = employeeRepository.findAll();
-        java.util.Map<String, com.salaryapp.model.Employee> latest = new java.util.HashMap<>();
-
-        for (com.salaryapp.model.Employee e : all) {
-            if (e.getName() == null || e.getName().trim().isEmpty()) continue;
-            com.salaryapp.model.Employee cur = latest.get(e.getName());
-            if (cur == null) {
-                latest.put(e.getName(), e);
-                continue;
-            }
-            java.time.LocalDate dCur = cur.getSalaryDate();
-            java.time.LocalDate dNew = e.getSalaryDate();
-
-            boolean newerByDate = (dNew != null) && (dCur == null || dNew.isAfter(dCur));
-            boolean newerById = (dNew == null && dCur == null) &&
-                                (e.getId() != null && cur.getId() != null && e.getId() > cur.getId());
-
-            if (newerByDate || newerById) {
-                latest.put(e.getName(), e);
-            }
-        }
-
-        return latest.values().stream()
-                .map(emp -> new com.salaryapp.dto.EmployeeMasterDTO(emp.getName(), emp.getBasicSalary()))
-                .sorted(java.util.Comparator.comparing(com.salaryapp.dto.EmployeeMasterDTO::getName))
-                .collect(java.util.stream.Collectors.toList());
     }
 }

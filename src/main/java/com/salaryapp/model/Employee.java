@@ -10,6 +10,11 @@ import com.fasterxml.jackson.annotation.JsonFormat;
     name = "employees",
     uniqueConstraints = {
         @UniqueConstraint(name = "uk_employee_month_id", columnNames = {"employeeId", "salaryMonth"})
+    },
+    indexes = {
+        @Index(name = "idx_salary_date", columnList = "salaryDate"),
+        @Index(name = "idx_salary_month", columnList = "salaryMonth"),
+        @Index(name = "idx_employee_id", columnList = "employeeId")
     }
 )
 public class Employee {

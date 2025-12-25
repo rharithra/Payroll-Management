@@ -50,14 +50,14 @@ function EmployeeMasterList() {
   return (
     <>
       <div className="actions-bar">
-        <Link to="/masters/add" className="btn btn-primary btn-rounded">Add Employee Master</Link>
+        <Link to="/masters/add" className="btn btn-primary btn-rounded">Add Employee</Link>
         <button
           type="button"
           className="btn btn-outline-primary btn-rounded"
           style={{ marginLeft: 8 }}
           onClick={() => setShowCustomModal(true)}
         >
-          Custom Boxes
+          Custom Components
         </button>
       </div>
 
@@ -92,7 +92,7 @@ function EmployeeMasterList() {
                       className="btn btn-sm btn-danger"
                       onClick={async () => {
                         if (!m.id) return;
-                        if (!window.confirm('Delete this employee master?')) return;
+                        if (!window.confirm('Delete this employee?')) return;
                         try {
                           await axios.delete(`/api/employee-masters/${m.id}`);
                           setMasters(prev => prev.filter(x => x.id !== m.id));
@@ -108,7 +108,7 @@ function EmployeeMasterList() {
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="text-center">No employee masters found</td>
+                <td colSpan={6} className="text-center">No employees found</td>
               </tr>
             )}
           </tbody>
@@ -136,7 +136,7 @@ function EmployeeMasterList() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div style={{ fontWeight: 700, fontSize: 18 }}>Custom Boxes</div>
+              <div style={{ fontWeight: 700, fontSize: 18 }}>Custom Components</div>
               <button type="button" className="btn btn-secondary btn-rounded" onClick={() => setShowCustomModal(false)}>Close</button>
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -148,8 +148,8 @@ function EmployeeMasterList() {
                 style={{ flex: 1 }}
               />
               <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)}>
-                <option value="Employee">Employee</option>
-                <option value="Earnings">Earnings</option>
+                <option value="Employee">Earnings</option>
+                <option value="Earnings">Allowances</option>
                 <option value="Deductions">Deductions</option>
                 <option value="Summary">Summary</option>
               </select>
@@ -168,26 +168,7 @@ function EmployeeMasterList() {
               </button>
             </div>
             <div>
-              {customBoxes.length === 0 ? (
-                <div style={{ color: '#6b7280' }}>No custom boxes</div>
-              ) : (
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                  {customBoxes.map(cb => (
-                    <li key={cb.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
-                      <div>{cb.label} <span style={{ color: '#6b7280' }}>({cb.category})</span></div>
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-danger"
-                        onClick={() => {
-                          setCustomBoxes(prev => prev.filter(x => x.id !== cb.id));
-                        }}
-                      >
-                        Remove
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              {/* Custom components list hidden as per request */}
             </div>
           </div>
         </div>

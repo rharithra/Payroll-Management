@@ -1,6 +1,7 @@
 package com.salaryapp.repository;
 
-import com.salaryapp.model.Employee;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
@@ -18,4 +19,9 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     boolean existsByNameAndSalaryDateBetween(String name, LocalDate start, LocalDate end);
     Employee findFirstByNameAndSalaryDateBetween(String name, LocalDate start, LocalDate end);
+
+    java.util.List<Employee> findAllBySalaryDateBetween(LocalDate start, LocalDate end);
+    Page<Employee> findAllBySalaryDateBetween(LocalDate start, LocalDate end, Pageable pageable);
+    
+    java.util.List<Employee> findBySalaryMonthIsNull();
 }

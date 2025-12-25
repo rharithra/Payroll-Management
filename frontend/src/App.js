@@ -48,7 +48,7 @@ function App() {
           <>
             <Link to="/add">Add Salary Details</Link>
             <Link to="/employees">View Salary Details</Link>
-            <Link to="/masters">Employee Master</Link>
+            <Link to="/masters">Employee List</Link>
             <Link to="/payslip">Payslip</Link>
           </>
         )}
