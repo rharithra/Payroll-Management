@@ -8,6 +8,7 @@ function EmployeeMasterList() {
   const [error, setError] = useState(null);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customBoxes, setCustomBoxes] = useState([]);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [newCategory, setNewCategory] = useState('Earnings');
 
@@ -33,14 +34,18 @@ function EmployeeMasterList() {
         const normalized = Array.isArray(parsed) ? parsed.map(x => ({ id: x.id, label: x.label, category: x.category || 'Earnings' })) : [];
         setCustomBoxes(normalized);
       }
-    } catch {}
+      setIsLoaded(true);
+    } catch {
+      setIsLoaded(true);
+    }
   }, []);
 
   useEffect(() => {
+    if (!isLoaded) return;
     try {
       localStorage.setItem('customBoxes', JSON.stringify(customBoxes));
     } catch {}
-  }, [customBoxes]);
+  }, [customBoxes, isLoaded]);
 
   return (
     <>

@@ -54,10 +54,8 @@ function EditEmployee() {
     const [error, setError] = useState(null);
     const [customBoxes, setCustomBoxes] = useState([]);
     const [customBoxValues, setCustomBoxValues] = useState({});
-    const [newEarningLabel, setNewEarningLabel] = useState('');
-    const [newDeductionLabel, setNewDeductionLabel] = useState('');
-    const [newEmployeeLabel, setNewEmployeeLabel] = useState('');
-    const [newSummaryLabel, setNewSummaryLabel] = useState('');
+
+
 
     useEffect(() => {
         try {
@@ -123,21 +121,9 @@ function EditEmployee() {
         setEmployee(prev => computeDerived(prev, nextValues, customBoxes));
     };
 
-    const persistBoxes = (next) => {
-        setCustomBoxes(next);
-        try { localStorage.setItem('customBoxes', JSON.stringify(next)); } catch {}
-    };
 
-    const addBox = (label, category) => {
-        const trimmed = (label || '').trim();
-        if (!trimmed) return;
-        const next = [...customBoxes, { id: Date.now(), label: trimmed, category }];
-        persistBoxes(next);
-        if (category === 'Earnings') setNewEarningLabel('');
-        if (category === 'Deductions') setNewDeductionLabel('');
-        if (category === 'Employee') setNewEmployeeLabel('');
-        if (category === 'Summary') setNewSummaryLabel('');
-    };
+
+
 
     useEffect(() => {
         const load = async () => {
@@ -421,24 +407,7 @@ function EditEmployee() {
                                 />
                             </div>
                         ))}
-                        <div className="form-item" style={{ marginTop: 12, borderTop: '1px dashed #ccc', paddingTop: 8 }}>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <input
-                                    type="text"
-                                    placeholder="New employee label"
-                                    value={newEmployeeLabel}
-                                    onChange={(e) => setNewEmployeeLabel(e.target.value)}
-                                    style={{ flex: 1 }}
-                                />
-                                <button
-                                    type="button"
-                                    className="btn btn-sm btn-secondary"
-                                    onClick={() => addBox(newEmployeeLabel, 'Employee')}
-                                >
-                                    Add
-                                </button>
-                            </div>
-                        </div>
+
 
                         <div className="form-item">
                             <label>Basic + HRA + DA (auto)</label>
@@ -625,24 +594,7 @@ function EditEmployee() {
                                 />
                             </div>
                         ))}
-                        <div className="form-item" style={{ marginTop: 12, borderTop: '1px dashed #ccc', paddingTop: 8 }}>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <input
-                                    type="text"
-                                    placeholder="New earning label"
-                                    value={newEarningLabel}
-                                    onChange={(e) => setNewEarningLabel(e.target.value)}
-                                    style={{ flex: 1 }}
-                                />
-                                <button
-                                    type="button"
-                                    className="btn btn-sm btn-secondary"
-                                    onClick={() => addBox(newEarningLabel, 'Earnings')}
-                                >
-                                    Add
-                                </button>
-                            </div>
-                        </div>
+
 
                         <div className="form-item">
                             <label htmlFor="grossSalary">Grosspay (auto)</label>
@@ -731,24 +683,7 @@ function EditEmployee() {
                                 />
                             </div>
                         ))}
-                        <div className="form-item" style={{ marginTop: 12, borderTop: '1px dashed #ccc', paddingTop: 8 }}>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <input
-                                    type="text"
-                                    placeholder="New deduction label"
-                                    value={newDeductionLabel}
-                                    onChange={(e) => setNewDeductionLabel(e.target.value)}
-                                    style={{ flex: 1 }}
-                                />
-                                <button
-                                    type="button"
-                                    className="btn btn-sm btn-secondary"
-                                    onClick={() => addBox(newDeductionLabel, 'Deductions')}
-                                >
-                                    Add
-                                </button>
-                            </div>
-                        </div>
+
 
                         <div className="form-item">
                             <label htmlFor="totalDeduction">Total Deduction (auto)</label>
@@ -800,24 +735,7 @@ function EditEmployee() {
                                 />
                             </div>
                         ))}
-                        <div className="form-item" style={{ marginTop: 12, borderTop: '1px dashed #ccc', paddingTop: 8 }}>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <input
-                                    type="text"
-                                    placeholder="New summary label"
-                                    value={newSummaryLabel}
-                                    onChange={(e) => setNewSummaryLabel(e.target.value)}
-                                    style={{ flex: 1 }}
-                                />
-                                <button
-                                    type="button"
-                                    className="btn btn-sm btn-secondary"
-                                    onClick={() => addBox(newSummaryLabel, 'Summary')}
-                                >
-                                    Add
-                                </button>
-                            </div>
-                        </div>
+
                     </div>
                 </div>
 

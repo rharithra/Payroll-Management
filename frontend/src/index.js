@@ -7,7 +7,7 @@ import axios from 'axios';
 
 // Ensure API calls hit backend when running on port 3000
 if (typeof window !== 'undefined' && window.location && window.location.port === '3000') {
-  axios.defaults.baseURL = 'http://localhost:8081';
+  axios.defaults.baseURL = 'http://localhost:8080';
 }
 
 function applyAuth() {

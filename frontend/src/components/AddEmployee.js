@@ -51,10 +51,6 @@ export default function AddEmployee() {
 
     const [customBoxes, setCustomBoxes] = useState([]);
     const [customBoxValues, setCustomBoxValues] = useState({});
-    const [newEarningLabel, setNewEarningLabel] = useState('');
-    const [newDeductionLabel, setNewDeductionLabel] = useState('');
-    const [newEmployeeLabel, setNewEmployeeLabel] = useState('');
-    const [newSummaryLabel, setNewSummaryLabel] = useState('');
 
     useEffect(() => {
         try {
@@ -154,20 +150,7 @@ export default function AddEmployee() {
         setCustomBoxValues(nextValues);
         setEmployee(prev => computeDerived(prev, nextValues));
     };
-    const persistBoxes = (next) => {
-        setCustomBoxes(next);
-        try { localStorage.setItem('customBoxes', JSON.stringify(next)); } catch {}
-    };
-    const addBox = (label, category) => {
-        const trimmed = (label || '').trim();
-        if (!trimmed) return;
-        const next = [...customBoxes, { id: Date.now(), label: trimmed, category }];
-        persistBoxes(next);
-        if (category === 'Earnings') setNewEarningLabel('');
-        if (category === 'Deductions') setNewDeductionLabel('');
-        if (category === 'Employee') setNewEmployeeLabel('');
-        if (category === 'Summary') setNewSummaryLabel('');
-    };
+
 
     // Fetch name/basic master list
     const [masters, setMasters] = useState([]);
@@ -194,43 +177,6 @@ export default function AddEmployee() {
         };
         setEmployee(computeDerived(updated));
         setJoinDate(m?.joinDate ?? '');
-    };
-
-    const handleClear = () => {
-        const cleared = {
-            ...employee,
-            salaryDate: '',
-            days: null,
-            hra: null,
-            dearnessAllowance: null,
-            conveyanceAllowance: null,
-            specialAllowance: null,
-            leads: null,
-            performanceIncentive: null,
-            perCall: null,
-            areaAllowance: null,
-            os: null,
-            roadshow: null,
-            review: null,
-            dresscode: null,
-            attendanceAllowance: null,
-            arrears: null,
-            bonus: null,
-            professionalTax: null,
-            advance: null,
-            loanDeduction: null,
-            salesDebits: null,
-            underPerformance: null,
-            otherAllowance: null,
-            otherDeduction: null,
-            grossSalary: null,
-            totalDeduction: null,
-            netSalary: null
-        };
-        setEmployee(computeDerived(cleared));
-        setAttendance({ totalLeave: 0, totalPermission: 0, permittedLeave: 0, absentDays: 0 });
-        setSuccess(null);
-        setError(null);
     };
 
     const [loading, setLoading] = useState(false);
@@ -377,104 +323,7 @@ export default function AddEmployee() {
         }
     };
 
-    const handleSaveNext = async () => {
-        if (loading) return;
-        const submitKey = `${String(employee.employeeId || '')}|${String((employee.salaryDate || '').slice(0,7))}`;
-        if (lastSubmittedKey && lastSubmittedKey === submitKey && (Date.now() - lastSubmittedAt) < 8000) return;
-        if (employee.days == null || employee.days <= 0) {
-            setError('Days is required and must be greater than 0');
-            setShowErrorModal(true);
-            return;
-        }
-        if (!employee.employeeId || String(employee.employeeId).trim() === '') {
-            setError('Please select employee from list');
-            setShowErrorModal(true);
-            return;
-        }
-        {
-            const ym = (employee.salaryDate || '').slice(0, 7);
-            const res = await axios.get('/api/employees');
-            const dup = (res.data || []).some((r) =>
-                String(r.employeeId || '').trim() === String(employee.employeeId).trim() &&
-                String(r.salaryDate || '').slice(0, 7) === ym
-            );
-            if (dup) {
-                if (lastSubmittedKey && lastSubmittedKey === submitKey && (Date.now() - lastSubmittedAt) < 8000) {
-                    return;
-                }
-                setError('The salary for the same employee name has already been recorded for this month. Kindly verify the Employee ID');
-                setShowErrorModal(true);
-                return;
-            }
-        }
-        const customFieldsList = customBoxes.map(cb => ({
-            label: cb.label,
-            category: cb.category,
-            value: n(customBoxValues[cb.label])
-        })).filter(x => x.value !== 0);
 
-        const customAllowanceAmount = customFieldsList
-            .filter(x => x.category === 'Earnings')
-            .reduce((acc, x) => acc + x.value, 0);
-
-        const customDeductionAmount = customFieldsList
-            .filter(x => x.category === 'Deductions')
-            .reduce((acc, x) => acc + x.value, 0);
-
-        const dto = {
-            name: employee.name,
-            designation: employee.designation,
-            department: employee.department,
-            role: employee.role,
-            salaryDate: employee.salaryDate,
-            employeeId: employee.employeeId,
-            days: employee.days,
-            basicSalary: employee.basicSalary,
-            hra: employee.hra,
-            dearnessAllowance: employee.dearnessAllowance,
-            conveyanceAllowance: employee.conveyanceAllowance,
-            specialAllowance: employee.specialAllowance,
-            leads: employee.leads,
-            performanceIncentive: employee.performanceIncentive,
-            perCall: employee.perCall,
-            areaAllowance: employee.areaAllowance,
-            os: employee.os,
-            roadshow: employee.roadshow,
-            review: employee.review,
-            dresscode: employee.dresscode,
-            attendanceAllowance: employee.attendanceAllowance,
-            arrears: employee.arrears,
-            bonus: employee.bonus,
-            professionalTax: employee.professionalTax,
-            incomeTax: employee.incomeTax,
-            providentFund: employee.providentFund,
-            advance: employee.advance,
-            loanDeduction: employee.loanDeduction,
-            salesDebits: employee.salesDebits,
-            underPerformance: employee.underPerformance,
-            otherAllowance: employee.otherAllowance,
-            otherDeduction: employee.otherDeduction,
-            grossSalary: employee.grossSalary,
-            totalDeduction: employee.totalDeduction,
-            netSalary: employee.netSalary,
-            customFields: JSON.stringify(customFieldsList),
-            customAllowanceAmount,
-            customDeductionAmount
-        };
-        try {
-            await axios.post('/api/employees', dto, {
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json' }
-            });
-            setSuccess('Saved successfully');
-            setTimeout(() => setSuccess(null), 1500);
-            setLastSubmittedKey(submitKey);
-            setLastSubmittedAt(Date.now());
-            handleNextEmployee();
-        } catch (err) {
-            setError(err?.response?.data?.message || err.message);
-            setShowErrorModal(true);
-        }
-    };
 
     const handleNextEmployee = () => {
         // Clear the form for next entry, keep the current salaryDate
@@ -800,24 +649,7 @@ export default function AddEmployee() {
                                                 />
                                             </div>
                                         ))}
-                                        <div className="form-item" style={{ marginTop: 12, borderTop: '1px dashed #ccc', paddingTop: 8 }}>
-                                            <div style={{ display: 'flex', gap: 8 }}>
-                                                <input
-                                                    type="text"
-                                                    placeholder="New employee label"
-                                                    value={newEmployeeLabel}
-                                                    onChange={(e) => setNewEmployeeLabel(e.target.value)}
-                                                    style={{ flex: 1 }}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-sm btn-secondary"
-                                                    onClick={() => addBox(newEmployeeLabel, 'Employee')}
-                                                >
-                                                    Add
-                                                </button>
-                                            </div>
-                                        </div>
+
                                     </div>
                                 )}
 
@@ -849,24 +681,7 @@ export default function AddEmployee() {
                                                 />
                                             </div>
                                         ))}
-                                        <div className="form-item" style={{ marginTop: 12, borderTop: '1px dashed #ccc', paddingTop: 8 }}>
-                                            <div style={{ display: 'flex', gap: 8 }}>
-                                                <input
-                                                    type="text"
-                                                    placeholder="New earning label"
-                                                    value={newEarningLabel}
-                                                    onChange={(e) => setNewEarningLabel(e.target.value)}
-                                                    style={{ flex: 1 }}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-sm btn-secondary"
-                                                    onClick={() => addBox(newEarningLabel, 'Earnings')}
-                                                >
-                                                    Add
-                                                </button>
-                                            </div>
-                                        </div>
+
 
                                         <div className="form-item"><label>Other allowance</label><input type="number" readOnly aria-readonly="true" value={employee.otherAllowance?.toFixed(2) ?? '0.00'} style={{ background:'#f3f4f6', color:'#6b7280' }}/></div>
                                     </div>
@@ -895,24 +710,7 @@ export default function AddEmployee() {
                                                 />
                                             </div>
                                         ))}
-                                        <div className="form-item" style={{ marginTop: 12, borderTop: '1px dashed #ccc', paddingTop: 8 }}>
-                                            <div style={{ display: 'flex', gap: 8 }}>
-                                                <input
-                                                    type="text"
-                                                    placeholder="New deduction label"
-                                                    value={newDeductionLabel}
-                                                    onChange={(e) => setNewDeductionLabel(e.target.value)}
-                                                    style={{ flex: 1 }}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-sm btn-secondary"
-                                                    onClick={() => addBox(newDeductionLabel, 'Deductions')}
-                                                >
-                                                    Add
-                                                </button>
-                                            </div>
-                                        </div>
+
 
                                         <div className="form-item"><label>Other deduction</label><input type="number" readOnly aria-readonly="true" value={employee.otherDeduction?.toFixed(2) ?? '0.00'} style={{ background:'#f3f4f6', color:'#6b7280' }}/></div>
                                     </div>
@@ -942,24 +740,7 @@ export default function AddEmployee() {
                                                 />
                                             </div>
                                         ))}
-                                        <div className="form-item" style={{ marginTop: 12, borderTop: '1px dashed #ccc', paddingTop: 8 }}>
-                                            <div style={{ display: 'flex', gap: 8 }}>
-                                                <input
-                                                    type="text"
-                                                    placeholder="New summary label"
-                                                    value={newSummaryLabel}
-                                                    onChange={(e) => setNewSummaryLabel(e.target.value)}
-                                                    style={{ flex: 1 }}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-sm btn-secondary"
-                                                    onClick={() => addBox(newSummaryLabel, 'Summary')}
-                                                >
-                                                    Add
-                                                </button>
-                                            </div>
-                                        </div>
+
                                     </div>
                                 )}
                             </div>
@@ -1037,21 +818,20 @@ export default function AddEmployee() {
                             </div>
                         </div>
                         <div className="btn-container btn-center">
-                            <button type="submit" disabled={loading} className={`btn ${success ? 'btn-primary' : 'btn-outline-primary'} btn-rounded`}>Save</button>
                             <button
                                 type="button"
                                 disabled={loading}
-                                className="btn btn-outline-primary btn-rounded"
-                                onClick={handleNextEmployee}
+                                className="btn btn-primary btn-rounded"
+                                onClick={handleSubmit}
                             >
-                                Next
+                                Save
                             </button>
                             <button
                                 type="button"
                                 className="btn btn-outline-secondary btn-rounded"
-                                onClick={handleClear}
+                                onClick={handleNextEmployee}
                             >
-                                Clear
+                                Next
                             </button>
                             <button
                                 type="button"
