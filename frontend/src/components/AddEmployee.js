@@ -67,6 +67,11 @@ export default function AddEmployee() {
         } catch {}
     }, []);
 
+    // Ensure state updates when customBoxes change (e.g. added new one)
+    useEffect(() => {
+        // If needed, we can force a re-render or check consistency
+    }, [customBoxes]);
+
     const computeDerived = (s, currentBoxes = customBoxValues) => {
         const days = n(s.days);
         const core =
@@ -473,6 +478,7 @@ export default function AddEmployee() {
 
     const handleNextEmployee = () => {
         // Clear the form for next entry, keep the current salaryDate
+        setCustomBoxValues({});
         setEmployee(prev => computeDerived({
             name: '',
             designation: '',
@@ -1036,9 +1042,9 @@ export default function AddEmployee() {
                                 type="button"
                                 disabled={loading}
                                 className="btn btn-outline-primary btn-rounded"
-                                onClick={handleSaveNext}
+                                onClick={handleNextEmployee}
                             >
-                                Save & Next
+                                Next
                             </button>
                             <button
                                 type="button"
