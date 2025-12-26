@@ -11,6 +11,12 @@ export default function Login() {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
+    
+    if (!username || !username.trim() || !password) {
+      setError('Username and password are required');
+      return;
+    }
+
     try {
       const res = await axios.post('/api/auth/login', { username, password });
       const { token, role } = res.data || {};
@@ -19,7 +25,11 @@ export default function Login() {
       window.dispatchEvent(new Event('storage'));
       navigate('/');
     } catch (err) {
-      setError('Invalid credentials');
+      if (err?.response?.status === 400) {
+        setError('Username and password are required');
+      } else {
+        setError('Invalid credentials');
+      }
     }
   };
 

@@ -16,6 +16,8 @@ import java.util.Optional;
 @CrossOrigin(origins = "https://harithra.in", allowCredentials = "true")
 @RequestMapping(value = {"/api/auth", "/auth"}, produces = MediaType.APPLICATION_JSON_VALUE)
 public class AuthController {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AuthController.class);
+
     private final AppUserRepository users;
     private final PasswordEncoder encoder;
     private final JwtTokenProvider jwt;
@@ -29,6 +31,7 @@ public class AuthController {
 
     @PostMapping(value = "/register", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> register(@RequestBody Map<String, Object> body) {
+        log.info("Register attempt: username={}", body.get("username"));
         String username = body.get("username") != null ? String.valueOf(body.get("username")).trim() : "";
         String password = body.get("password") != null ? String.valueOf(body.get("password")) : "";
         String role = body.get("role") != null ? String.valueOf(body.get("role")).toUpperCase() : "EMPLOYEE";

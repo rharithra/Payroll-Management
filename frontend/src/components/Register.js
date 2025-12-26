@@ -14,6 +14,12 @@ export default function Register() {
     e.preventDefault();
     setError('');
     setOk(false);
+
+    if (!username || !username.trim() || !password) {
+      setError('Username and password are required');
+      return;
+    }
+
     try {
       await axios.post('/api/auth/register', { username, password, role });
       setOk(true);
@@ -21,6 +27,7 @@ export default function Register() {
     } catch (err) {
       const code = err?.response?.status;
       if (code === 409) setError('Username already exists');
+      else if (err?.response?.data?.error) setError(err.response.data.error);
       else setError('Server error');
     }
   };
