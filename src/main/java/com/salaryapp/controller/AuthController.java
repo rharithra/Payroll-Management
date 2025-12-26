@@ -1,8 +1,11 @@
 package com.salaryapp.controller;
 
+import com.salaryapp.dto.LoginRequest;
+import com.salaryapp.dto.RegisterRequest;
 import com.salaryapp.model.AppUser;
 import com.salaryapp.repository.AppUserRepository;
 import com.salaryapp.security.JwtTokenProvider;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -29,42 +32,30 @@ public class AuthController {
         this.jwt = jwt;
     }
 
-    @PostMapping(value = "/register", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> register(@RequestBody Map<String, Object> body) {
-        log.info("Register attempt: username={}", body.get("username"));
-        String username = body.get("username") != null ? String.valueOf(body.get("username")).trim() : "";
-        String password = body.get("password") != null ? String.valueOf(body.get("password")) : "";
-        String role = body.get("role") != null ? String.valueOf(body.get("role")).toUpperCase() : "EMPLOYEE";
+    @PostMapping(value = "/register")
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
+        log.info("Register attempt: username={}", request.getUsername());
         
-        if (username.isEmpty() || password.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Username and password are required"));
-        }
-        if (users.existsByUsername(username)) {
-            return ResponseEntity.status(409).build();
+        if (users.existsByUsername(request.getUsername())) {
+            return ResponseEntity.status(409).body(Map.of("error", "Username already exists"));
         }
         AppUser u = new AppUser();
-        u.setUsername(username);
-        u.setPassword(encoder.encode(password));
-        u.setRole(role);
+        u.setUsername(request.getUsername());
+        u.setPassword(encoder.encode(request.getPassword()));
+        u.setRole(request.getRole() != null ? request.getRole().toUpperCase() : "EMPLOYEE");
         users.save(u);
         return ResponseEntity.ok(Map.of("ok", true));
     }
 
-    @PostMapping(value = "/login", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> login(@RequestBody Map<String, Object> body) {
-        String username = body.get("username") != null ? String.valueOf(body.get("username")).trim() : "";
-        String password = body.get("password") != null ? String.valueOf(body.get("password")) : "";
-        
-        if (username.isEmpty() || password.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Username and password are required"));
-        }
-        Optional<AppUser> found = users.findByUsername(username);
+    @PostMapping(value = "/login")
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
+        Optional<AppUser> found = users.findByUsername(request.getUsername());
         if (found.isEmpty()) {
-            return ResponseEntity.status(401).build();
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
         AppUser u = found.get();
-        if (!encoder.matches(password, u.getPassword())) {
-            return ResponseEntity.status(401).build();
+        if (!encoder.matches(request.getPassword(), u.getPassword())) {
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
         String token = jwt.createToken(u.getUsername(), u.getRole());
         return ResponseEntity.ok(Map.of("token", token, "role", u.getRole()));
