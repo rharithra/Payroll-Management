@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "https://harithra.in", allowCredentials = "true")
 @RequestMapping(value = {"/api/auth", "/auth"}, produces = MediaType.APPLICATION_JSON_VALUE)
 public class AuthController {
     private final AppUserRepository users;
