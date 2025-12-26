@@ -10,19 +10,19 @@ import java.time.LocalDate;
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     boolean existsByEmployeeIdAndSalaryDateBetween(String employeeId, LocalDate start, LocalDate end);
-    Employee findFirstByEmployeeIdAndSalaryDateBetween(String employeeId, LocalDate start, LocalDate end);
+    com.salaryapp.model.Employee findFirstByEmployeeIdAndSalaryDateBetween(String employeeId, LocalDate start, LocalDate end);
 
     boolean existsByEmployeeIdAndSalaryMonth(String employeeId, String salaryMonth);
-    Employee findFirstByEmployeeIdAndSalaryMonth(String employeeId, String salaryMonth);
+    com.salaryapp.model.Employee findFirstByEmployeeIdAndSalaryMonth(String employeeId, String salaryMonth);
 
     boolean existsByNameAndSalaryMonth(String name, String salaryMonth);
-    Employee findFirstByNameAndSalaryMonth(String name, String salaryMonth);
+    com.salaryapp.model.Employee findFirstByNameAndSalaryMonth(String name, String salaryMonth);
 
     boolean existsByNameAndSalaryDateBetween(String name, LocalDate start, LocalDate end);
-    Employee findFirstByNameAndSalaryDateBetween(String name, LocalDate start, LocalDate end);
+    com.salaryapp.model.Employee findFirstByNameAndSalaryDateBetween(String name, LocalDate start, LocalDate end);
 
-    java.util.List<Employee> findAllBySalaryDateBetween(LocalDate start, LocalDate end);
-    Page<Employee> findAllBySalaryDateBetween(LocalDate start, LocalDate end, Pageable pageable);
+    java.util.List<com.salaryapp.model.Employee> findAllBySalaryDateBetween(LocalDate start, LocalDate end);
+    Page<com.salaryapp.model.Employee> findAllBySalaryDateBetween(LocalDate start, LocalDate end, Pageable pageable);
     
-    java.util.List<Employee> findBySalaryMonthIsNull();
+    java.util.List<com.salaryapp.model.Employee> findBySalaryMonthIsNull();
 }

@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "https://harithra.in", allowCredentials = "true")
 @RequestMapping(value = "/api/employee-masters", produces = MediaType.APPLICATION_JSON_VALUE)
 public class EmployeeMasterController {
 

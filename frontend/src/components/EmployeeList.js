@@ -15,23 +15,42 @@ function EmployeeList() {
 
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(50);
+  const [totalPages, setTotalPages] = useState(0);
 
   useEffect(() => {
     fetchEmployees();
-  }, [selectedMonth, selectedYear]);
+  }, [selectedMonth, selectedYear, page, size]);
 
   const fetchEmployees = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`/api/employees?year=${selectedYear}&month=${selectedMonth}`);
-      setEmployees(response.data);
+      const response = await axios.get(`/api/employees?year=${selectedYear}&month=${selectedMonth}&page=${page}&size=${size}`);
+      if (response.data && response.data.content) {
+          setEmployees(response.data.content);
+          setTotalPages(response.data.totalPages);
+      } else {
+          setEmployees(response.data);
+          setTotalPages(1);
+      }
       setLoading(false);
     } catch (err) {
       setError('Error fetching employee data');
       setLoading(false);
       console.error('Error fetching employees:', err);
     }
+  };
+
+  const handleMonthChange = (e) => {
+    setSelectedMonth(Number(e.target.value));
+    setPage(0);
+  };
+
+  const handleYearChange = (e) => {
+    setSelectedYear(Number(e.target.value));
+    setPage(0);
   };
 
   const handleDelete = async (id) => {
@@ -324,7 +343,7 @@ function EmployeeList() {
                 className="form-select" 
                 style={{ width: 'auto', display: 'inline-block', padding: '6px 12px', fontSize: '14px' }}
                 value={selectedMonth} 
-                onChange={e => setSelectedMonth(e.target.value)}
+                onChange={handleMonthChange}
             >
                 {monthNames.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
             </select>
@@ -332,7 +351,7 @@ function EmployeeList() {
                 className="form-select" 
                 style={{ width: 'auto', display: 'inline-block', padding: '6px 12px', fontSize: '14px' }}
                 value={selectedYear} 
-                onChange={e => setSelectedYear(e.target.value)}
+                onChange={handleYearChange}
             >
                 {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
@@ -427,6 +446,29 @@ function EmployeeList() {
             </tr>
           </tfoot>
         </table>
+      </div>
+      
+      {/* Pagination Controls */}
+      <div className="d-flex justify-content-between align-items-center mt-3 no-print">
+          <div>
+              Page {page + 1} of {totalPages || 1}
+          </div>
+          <div>
+              <button 
+                className="btn btn-secondary me-2" 
+                disabled={page === 0} 
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+              >
+                Previous
+              </button>
+              <button 
+                className="btn btn-secondary" 
+                disabled={page >= (totalPages || 1) - 1} 
+                onClick={() => setPage(p => p + 1)}
+              >
+                Next
+              </button>
+          </div>
       </div>
     </>
   );
