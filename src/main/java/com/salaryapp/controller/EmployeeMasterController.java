@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping(value = {"/api/master", "/master"}, produces = MediaType.APPLICATION_JSON_VALUE)
+@RequestMapping(value = {"/api/master", "/master", "/api/employee-masters"}, produces = MediaType.APPLICATION_JSON_VALUE)
 public class EmployeeMasterController {
 
     private final EmployeeMasterRepository repo;
