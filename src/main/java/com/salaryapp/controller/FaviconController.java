@@ -6,7 +6,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@ConditionalOnProperty(name = "app.favicon.enabled", havingValue = "true", matchIfMissing = false)
 public class FaviconController {
     // Respond to /favicon.ico with no content to avoid 404/500 noise
     @GetMapping("/favicon.ico")

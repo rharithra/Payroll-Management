@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@CrossOrigin(origins = "https://harithra.in", allowCredentials = "true")
 @RequestMapping(value = {"/api/employees", "/employees"}, produces = MediaType.APPLICATION_JSON_VALUE)
 public class EmployeeController {
     private static final org.slf4j.Logger log =

@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@CrossOrigin(origins = "https://harithra.in", allowCredentials = "true")
 @RequestMapping(value = {"/api/auth", "/auth"}, produces = MediaType.APPLICATION_JSON_VALUE)
 public class AuthController {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AuthController.class);
