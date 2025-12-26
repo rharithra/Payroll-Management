@@ -18,17 +18,33 @@ export default function Login() {
     }
 
     try {
-      const res = await axios.post('/api/auth/login', { username, password });
+      console.log('Sending login request:', { username });
+      const res = await axios.post('/api/auth/login', { username, password }, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+      console.log('Login response:', res.data);
+      
       const { token, role } = res.data || {};
       localStorage.setItem('token', token || '');
       localStorage.setItem('role', role || '');
       window.dispatchEvent(new Event('storage'));
       navigate('/');
     } catch (err) {
+      console.error('Login error:', err);
+      console.error('Error response:', err.response);
+      
       if (err?.response?.status === 400) {
-        setError('Username and password are required');
-      } else {
+        const data = err.response.data;
+        if (data?.details) {
+           const msg = Object.values(data.details).join(', ');
+           setError(msg);
+        } else {
+           setError(data?.error || 'Invalid request');
+        }
+      } else if (err?.response?.status === 401) {
         setError('Invalid credentials');
+      } else {
+        setError('Login failed. Check console.');
       }
     }
   };

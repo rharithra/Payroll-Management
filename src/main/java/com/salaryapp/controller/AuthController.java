@@ -47,7 +47,7 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("ok", true));
     }
 
-    @PostMapping(value = "/login")
+    @PostMapping(value = "/login", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         Optional<AppUser> found = users.findByUsername(request.getUsername());
         if (found.isEmpty()) {

@@ -21,14 +21,32 @@ export default function Register() {
     }
 
     try {
-      await axios.post('/api/auth/register', { username, password, role });
+      console.log('Sending register request:', { username, password, role });
+      const res = await axios.post('/api/auth/register', { username, password, role }, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+      console.log('Register response:', res.data);
       setOk(true);
       setTimeout(() => navigate('/login'), 800);
     } catch (err) {
+      console.error('Register error:', err);
+      console.error('Error response:', err.response);
+      
       const code = err?.response?.status;
-      if (code === 409) setError('Username already exists');
-      else if (err?.response?.data?.error) setError(err.response.data.error);
-      else setError('Server error');
+      if (code === 409) {
+        setError('Username already exists');
+      } else if (err?.response?.data?.details) {
+        // Handle validation errors from backend
+        const details = err.response.data.details;
+        const msg = Object.values(details).join(', ');
+        setError(msg || 'Validation failed');
+      } else if (err?.response?.data?.error) {
+        setError(err.response.data.error);
+      } else if (err?.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError('Registration failed. Check console for details.');
+      }
     }
   };
 
