@@ -7,6 +7,10 @@ import com.salaryapp.repository.EmployeeMasterRepository;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +25,7 @@ public class EmployeeService {
     private EmployeeRepository employeeRepository;
     @Autowired
     private EmployeeMasterRepository employeeMasterRepository;
+    private final RestTemplate restTemplate = new RestTemplate();
 
     @jakarta.annotation.PostConstruct
     public void backfillSalaryMonth() {
@@ -199,6 +204,22 @@ public class EmployeeService {
                 .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
         e.setStatus("APPROVED");
         Employee saved = employeeRepository.save(e);
+        try {
+            String url = "https://script.google.com/macros/s/AKfycbx4R5BsDCEhU2KtwB-CljLVmpYA_AsukXcpYe1AWqwRQGbYsL4FIJV_bMRoXm5n4-E/exec";
+            java.util.Map<String, Object> body = new java.util.HashMap<>();
+            body.put("employeeId", saved.getEmployeeId());
+            body.put("name", saved.getName());
+            body.put("salaryMonth", saved.getSalaryMonth());
+            body.put("netSalary", saved.getNetSalary());
+            body.put("status", saved.getStatus());
+            body.put("approvedAt", java.time.Instant.now().toString());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<java.util.Map<String, Object>> entity = new HttpEntity<>(body, headers);
+            restTemplate.postForEntity(url, entity, String.class);
+        } catch (Exception ignore) {
+        }
         return convertToDTO(saved);
     }
     

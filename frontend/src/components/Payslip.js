@@ -6,7 +6,7 @@ function Payslip() {
   const [employees, setEmployees] = useState([]);
   const [selectedId, setSelectedId] = useState('');
   const [slip, setSlip] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [params] = useSearchParams();
   const [masters, setMasters] = useState([]);
@@ -18,8 +18,17 @@ function Payslip() {
 
   useEffect(() => {
     const fetchEmployees = async () => {
+      if (!selectedMonth || !selectedMonth.trim()) {
+        setEmployees([]);
+        setLoading(false);
+        return;
+      }
       try {
-        const res = await axios.get('/api/employees');
+        setLoading(true);
+        const [yearStr, monthStr] = selectedMonth.split('-');
+        const year = parseInt(yearStr, 10);
+        const month = parseInt(monthStr, 10);
+        const res = await axios.get(`/api/employees?year=${year}&month=${month}`);
         setEmployees(res.data || []);
       } catch (err) {
         setError('Failed to load employees');
@@ -29,7 +38,7 @@ function Payslip() {
       }
     };
     fetchEmployees();
-  }, []);
+  }, [selectedMonth]);
 
   // NEW: Month/Employee selectors and filtered pay slip options
   const [selectedMonth, setSelectedMonth] = useState('');      // YYYY-MM
