@@ -48,7 +48,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(java.util.List.of("https://harithra.in", "https://www.harithra.in"));
+        configuration.setAllowedOrigins(java.util.List.of("https://harithra.in", "https://www.harithra.in","https://payroll-management-7p3z.onrender.com",
+                                                          "https://payrollapp.harithra.in"));
         configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(java.util.List.of("*"));
         configuration.setExposedHeaders(java.util.List.of("Authorization", "Content-Type"));
