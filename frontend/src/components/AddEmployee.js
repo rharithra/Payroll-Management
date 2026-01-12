@@ -2,6 +2,28 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 
+const defaultFieldLabels = {
+    basicSalary: 'Basic salary',
+    specialAllowance: 'Special allowance',
+    hra: 'House Rent Allowance',
+    dearnessAllowance: 'Dearness Allowance',
+    attendanceAllowance: 'Attendance allowance',
+    areaAllowance: 'Area allowance',
+    dresscode: 'Dresscode',
+    os: 'OS',
+    performanceIncentive: 'Sales incentive',
+    review: 'Review',
+    roadshow: 'Roadshow promo',
+    perCall: 'Per-call inc',
+    arrears: 'Arrears',
+    bonus: 'Bonus',
+    advance: 'Advance',
+    loanDeduction: 'Loan Deduction',
+    professionalTax: 'Professional Tax',
+    underPerformance: 'Under Performance',
+    salesDebits: 'Sales Debits'
+};
+
 export default function AddEmployee() {
     // In AddEmployee component: initial state and totals calculation
     const [employee, setEmployee] = useState({
@@ -51,6 +73,19 @@ export default function AddEmployee() {
 
     const [customBoxes, setCustomBoxes] = useState([]);
     const [customBoxValues, setCustomBoxValues] = useState({});
+    const [fieldLabels, setFieldLabels] = useState(defaultFieldLabels);
+
+    useEffect(() => {
+        try {
+            const savedLabels = localStorage.getItem('salaryFieldLabels');
+            if (savedLabels) {
+                const parsed = JSON.parse(savedLabels);
+                if (parsed && typeof parsed === 'object') {
+                    setFieldLabels(prev => ({ ...prev, ...parsed }));
+                }
+            }
+        } catch {}
+    }, []);
 
     useEffect(() => {
         try {
@@ -151,6 +186,16 @@ export default function AddEmployee() {
         setEmployee(prev => computeDerived(prev, nextValues));
     };
 
+    const updateFieldLabel = useCallback((fieldKey, value) => {
+        setFieldLabels(prev => {
+            const next = { ...prev, [fieldKey]: value || defaultFieldLabels[fieldKey] || '' };
+            try {
+                localStorage.setItem('salaryFieldLabels', JSON.stringify(next));
+            } catch {}
+            return next;
+        });
+    }, []);
+
 
     // Fetch name/basic master list
     const [masters, setMasters] = useState([]);
@@ -178,6 +223,53 @@ export default function AddEmployee() {
         setEmployee(computeDerived(updated));
         setJoinDate(m?.joinDate ?? '');
     };
+
+    function EditableLabel({ fieldKey, defaultText }) {
+        const [editing, setEditing] = useState(false);
+        const [draft, setDraft] = useState(fieldLabels[fieldKey] ?? defaultText);
+
+        useEffect(() => {
+            setDraft(fieldLabels[fieldKey] ?? defaultText);
+        }, [fieldLabels, fieldKey, defaultText]);
+
+        const text = fieldLabels[fieldKey] ?? defaultText;
+
+        if (editing) {
+            return (
+                <input
+                    type="text"
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onBlur={() => {
+                        setEditing(false);
+                        const trimmed = draft.trim();
+                        updateFieldLabel(fieldKey, trimmed === '' ? defaultText : trimmed);
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            e.currentTarget.blur();
+                        }
+                        if (e.key === 'Escape') {
+                            e.preventDefault();
+                            setEditing(false);
+                            setDraft(text);
+                        }
+                    }}
+                    style={{ width: '100%', font: 'inherit' }}
+                />
+            );
+        }
+
+        return (
+            <span
+                onClick={() => setEditing(true)}
+                style={{ cursor: 'pointer' }}
+            >
+                {text}
+            </span>
+        );
+    }
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -622,19 +714,27 @@ export default function AddEmployee() {
                                             <input id="designation" name="designation" type="text" value={employee.designation ?? ''} onChange={handleChange}/>
                                         </div>
                                         <div className="form-item">
-                                            <label htmlFor="basicSalary">Basic salary</label>
+                                            <label htmlFor="basicSalary">
+                                                <EditableLabel fieldKey="basicSalary" defaultText="Basic salary" />
+                                            </label>
                                             <input id="basicSalary" name="basicSalary" type="number" value={employee.basicSalary ?? ''} onChange={handleChange}/>
                                         </div>
                                         <div className="form-item">
-                                            <label htmlFor="specialAllowance">Special allowance</label>
+                                            <label htmlFor="specialAllowance">
+                                                <EditableLabel fieldKey="specialAllowance" defaultText="Special allowance" />
+                                            </label>
                                             <input id="specialAllowance" name="specialAllowance" type="number" value={employee.specialAllowance ?? ''} onChange={handleChange}/>
                                         </div>
                                         <div className="form-item">
-                                            <label htmlFor="hra">House Rent Allowance</label>
+                                            <label htmlFor="hra">
+                                                <EditableLabel fieldKey="hra" defaultText="House Rent Allowance" />
+                                            </label>
                                             <input id="hra" name="hra" type="number" value={employee.hra ?? ''} onChange={handleChange}/>
                                         </div>
                                         <div className="form-item">
-                                            <label htmlFor="dearnessAllowance">Dearness Allowance</label>
+                                            <label htmlFor="dearnessAllowance">
+                                                <EditableLabel fieldKey="dearnessAllowance" defaultText="Dearness Allowance" />
+                                            </label>
                                             <input id="dearnessAllowance" name="dearnessAllowance" type="number" value={employee.dearnessAllowance ?? ''} onChange={handleChange}/>
                                         </div>
                                         {customBoxes.filter(cb => cb.category === 'Employee').map(cb => (
@@ -653,16 +753,66 @@ export default function AddEmployee() {
 
                                 {activeTab === 'Earnings' && (
                                     <div className="form-grid">
-                                        <div className="form-item"><label htmlFor="attendanceAllowance">Attendance allowance</label><input id="attendanceAllowance" name="attendanceAllowance" type="number" value={employee.attendanceAllowance ?? ''} onChange={handleChange}/></div>
-                                        <div className="form-item"><label htmlFor="areaAllowance">Area allowance</label><input id="areaAllowance" name="areaAllowance" type="number" value={employee.areaAllowance ?? ''} onChange={handleChange}/></div>
-                                        <div className="form-item"><label htmlFor="dresscode">Dresscode</label><input id="dresscode" name="dresscode" type="number" value={employee.dresscode ?? ''} onChange={handleChange}/></div>
-                                        <div className="form-item"><label htmlFor="os">OS</label><input id="os" name="os" type="number" value={employee.os ?? ''} onChange={handleChange}/></div>
-                                        <div className="form-item"><label htmlFor="performanceIncentive">Sales incentive</label><input id="performanceIncentive" name="performanceIncentive" type="number" value={employee.performanceIncentive ?? ''} onChange={handleChange}/></div>
-                                        <div className="form-item"><label htmlFor="review">Review</label><input id="review" name="review" type="number" value={employee.review ?? ''} onChange={handleChange}/></div>
-                                        <div className="form-item"><label htmlFor="roadshow">Roadshow promo</label><input id="roadshow" name="roadshow" type="number" value={employee.roadshow ?? ''} onChange={handleChange}/></div>
-                                        <div className="form-item"><label htmlFor="perCall">Per-call inc</label><input id="perCall" name="perCall" type="number" value={employee.perCall ?? ''} onChange={handleChange}/></div>
-                                        <div className="form-item"><label htmlFor="arrears">Arrears</label><input id="arrears" name="arrears" type="number" value={employee.arrears ?? ''} onChange={handleChange}/></div>
-                                        <div className="form-item"><label htmlFor="bonus">Bonus</label><input id="bonus" name="bonus" type="number" value={employee.bonus ?? ''} onChange={handleChange}/></div>
+                                        <div className="form-item">
+                                            <label htmlFor="attendanceAllowance">
+                                                <EditableLabel fieldKey="attendanceAllowance" defaultText="Attendance allowance" />
+                                            </label>
+                                            <input id="attendanceAllowance" name="attendanceAllowance" type="number" value={employee.attendanceAllowance ?? ''} onChange={handleChange}/>
+                                        </div>
+                                        <div className="form-item">
+                                            <label htmlFor="areaAllowance">
+                                                <EditableLabel fieldKey="areaAllowance" defaultText="Area allowance" />
+                                            </label>
+                                            <input id="areaAllowance" name="areaAllowance" type="number" value={employee.areaAllowance ?? ''} onChange={handleChange}/>
+                                        </div>
+                                        <div className="form-item">
+                                            <label htmlFor="dresscode">
+                                                <EditableLabel fieldKey="dresscode" defaultText="Dresscode" />
+                                            </label>
+                                            <input id="dresscode" name="dresscode" type="number" value={employee.dresscode ?? ''} onChange={handleChange}/>
+                                        </div>
+                                        <div className="form-item">
+                                            <label htmlFor="os">
+                                                <EditableLabel fieldKey="os" defaultText="OS" />
+                                            </label>
+                                            <input id="os" name="os" type="number" value={employee.os ?? ''} onChange={handleChange}/>
+                                        </div>
+                                        <div className="form-item">
+                                            <label htmlFor="performanceIncentive">
+                                                <EditableLabel fieldKey="performanceIncentive" defaultText="Sales incentive" />
+                                            </label>
+                                            <input id="performanceIncentive" name="performanceIncentive" type="number" value={employee.performanceIncentive ?? ''} onChange={handleChange}/>
+                                        </div>
+                                        <div className="form-item">
+                                            <label htmlFor="review">
+                                                <EditableLabel fieldKey="review" defaultText="Review" />
+                                            </label>
+                                            <input id="review" name="review" type="number" value={employee.review ?? ''} onChange={handleChange}/>
+                                        </div>
+                                        <div className="form-item">
+                                            <label htmlFor="roadshow">
+                                                <EditableLabel fieldKey="roadshow" defaultText="Roadshow promo" />
+                                            </label>
+                                            <input id="roadshow" name="roadshow" type="number" value={employee.roadshow ?? ''} onChange={handleChange}/>
+                                        </div>
+                                        <div className="form-item">
+                                            <label htmlFor="perCall">
+                                                <EditableLabel fieldKey="perCall" defaultText="Per-call inc" />
+                                            </label>
+                                            <input id="perCall" name="perCall" type="number" value={employee.perCall ?? ''} onChange={handleChange}/>
+                                        </div>
+                                        <div className="form-item">
+                                            <label htmlFor="arrears">
+                                                <EditableLabel fieldKey="arrears" defaultText="Arrears" />
+                                            </label>
+                                            <input id="arrears" name="arrears" type="number" value={employee.arrears ?? ''} onChange={handleChange}/>
+                                        </div>
+                                        <div className="form-item">
+                                            <label htmlFor="bonus">
+                                                <EditableLabel fieldKey="bonus" defaultText="Bonus" />
+                                            </label>
+                                            <input id="bonus" name="bonus" type="number" value={employee.bonus ?? ''} onChange={handleChange}/>
+                                        </div>
                                         {customBoxes.filter(cb => cb.category === 'Earnings').map(cb => (
                                             <div key={cb.id} className="form-item">
                                                 <label>{cb.label} <button type="button" style={{ fontSize: '0.7em', color: 'red', border: 'none', background: 'none' }} onClick={() => {
@@ -687,11 +837,36 @@ export default function AddEmployee() {
 
                                 {activeTab === 'Deductions' && (
                                     <div className="form-grid">
-                                        <div className="form-item"><label htmlFor="advance">Advance</label><input id="advance" name="advance" type="number" value={employee.advance ?? ''} onChange={handleChange}/></div>
-                                        <div className="form-item"><label htmlFor="loanDeduction">Loan Deduction</label><input id="loanDeduction" name="loanDeduction" type="number" value={employee.loanDeduction ?? ''} onChange={handleChange}/></div>
-                                        <div className="form-item"><label htmlFor="professionalTax">Professional Tax</label><input id="professionalTax" name="professionalTax" type="number" value={employee.professionalTax ?? ''} onChange={handleChange}/></div>
-                                        <div className="form-item"><label htmlFor="underPerformance">Under Performance</label><input id="underPerformance" name="underPerformance" type="number" value={employee.underPerformance ?? ''} onChange={handleChange}/></div>
-                                        <div className="form-item"><label htmlFor="salesDebits">Sales Debits</label><input id="salesDebits" name="salesDebits" type="number" value={employee.salesDebits ?? ''} onChange={handleChange}/></div>
+                                        <div className="form-item">
+                                            <label htmlFor="advance">
+                                                <EditableLabel fieldKey="advance" defaultText="Advance" />
+                                            </label>
+                                            <input id="advance" name="advance" type="number" value={employee.advance ?? ''} onChange={handleChange}/>
+                                        </div>
+                                        <div className="form-item">
+                                            <label htmlFor="loanDeduction">
+                                                <EditableLabel fieldKey="loanDeduction" defaultText="Loan Deduction" />
+                                            </label>
+                                            <input id="loanDeduction" name="loanDeduction" type="number" value={employee.loanDeduction ?? ''} onChange={handleChange}/>
+                                        </div>
+                                        <div className="form-item">
+                                            <label htmlFor="professionalTax">
+                                                <EditableLabel fieldKey="professionalTax" defaultText="Professional Tax" />
+                                            </label>
+                                            <input id="professionalTax" name="professionalTax" type="number" value={employee.professionalTax ?? ''} onChange={handleChange}/>
+                                        </div>
+                                        <div className="form-item">
+                                            <label htmlFor="underPerformance">
+                                                <EditableLabel fieldKey="underPerformance" defaultText="Under Performance" />
+                                            </label>
+                                            <input id="underPerformance" name="underPerformance" type="number" value={employee.underPerformance ?? ''} onChange={handleChange}/>
+                                        </div>
+                                        <div className="form-item">
+                                            <label htmlFor="salesDebits">
+                                                <EditableLabel fieldKey="salesDebits" defaultText="Sales Debits" />
+                                            </label>
+                                            <input id="salesDebits" name="salesDebits" type="number" value={employee.salesDebits ?? ''} onChange={handleChange}/>
+                                        </div>
                                         {customBoxes.filter(cb => cb.category === 'Deductions').map(cb => (
                                             <div key={cb.id} className="form-item">
                                                 <label>{cb.label}</label>
