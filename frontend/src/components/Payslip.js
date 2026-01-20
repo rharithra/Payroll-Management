@@ -24,6 +24,7 @@ function Payslip() {
   const [filteredSlips, setFilteredSlips] = useState([]);
   const [fieldLabels, setFieldLabels] = useState({});
   const [showLogoInfo, setShowLogoInfo] = useState(false);
+  const [hasLogo, setHasLogo] = useState(true);
   useEffect(() => {
     axios.get('/api/employee-masters')
       .then(res => setMasters(res.data || []))
@@ -187,6 +188,7 @@ function Payslip() {
       setError(null);
       setLogoStatus('');
       await axios.post('/api/logo', formData);
+      setHasLogo(true);
       setLogoVersion(v => v + 1);
       setLogoStatus('Logo uploaded successfully');
     } catch (err) {
@@ -315,9 +317,10 @@ function Payslip() {
                 src={`${apiBase}/api/logo?v=${logoVersion}`}
                 alt="Company logo"
                 onError={(e) => {
-                    e.target.style.display = 'none';
+                    setHasLogo(false);
                     setLogoStatus('No logo found. Please upload a PNG or JPEG logo.');
                 }}
+                style={hasLogo ? {} : { display: 'none' }}
               />
               <div className="company-block">
                 <div className="company-title">Anjo Aqua World</div>
