@@ -2,6 +2,13 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useSearchParams, Link } from 'react-router-dom';
 
+const apiBase =
+  (typeof window !== 'undefined' &&
+    window.location &&
+    window.location.port === '3000'
+    ? 'http://localhost:8080'
+    : (process.env.REACT_APP_API_URL || ''));
+
 function Payslip() {
   const [employees, setEmployees] = useState([]);
   const [selectedId, setSelectedId] = useState('');
@@ -10,6 +17,13 @@ function Payslip() {
   const [error, setError] = useState(null);
   const [params] = useSearchParams();
   const [masters, setMasters] = useState([]);
+  const [logoVersion, setLogoVersion] = useState(0);
+  const [logoStatus, setLogoStatus] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedMasterEmpId, setSelectedMasterEmpId] = useState('');
+  const [filteredSlips, setFilteredSlips] = useState([]);
+  const [fieldLabels, setFieldLabels] = useState({});
+  const [showLogoInfo, setShowLogoInfo] = useState(false);
   useEffect(() => {
     axios.get('/api/employee-masters')
       .then(res => setMasters(res.data || []))
@@ -39,11 +53,6 @@ function Payslip() {
     };
     fetchEmployees();
   }, [selectedMonth]);
-
-  // NEW: Month/Employee selectors and filtered pay slip options
-  const [selectedMonth, setSelectedMonth] = useState('');      // YYYY-MM
-  const [selectedMasterEmpId, setSelectedMasterEmpId] = useState(''); // employeeId from master
-  const [filteredSlips, setFilteredSlips] = useState([]);
 
   const monthKey = (d) => {
     if (!d) return '';
@@ -137,6 +146,20 @@ function Payslip() {
   };
   const roundInt = (v) => Math.round(Number(v ?? 0));
 
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined' || !window.localStorage) return;
+      const raw = window.localStorage.getItem('salaryFieldLabels');
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        setFieldLabels(parsed);
+      }
+    } catch {}
+  }, []);
+
+  const labelFor = (key, fallback) => fieldLabels[key] || fallback;
+
   const handleDownloadPdf = async () => {
     const el = document.getElementById('print-area');
     if (!el) return;
@@ -153,6 +176,27 @@ function Payslip() {
   
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`Payslip_${selectedId || 'employee'}.pdf`);
+  };
+
+  const handleLogoUpload = async (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      setError(null);
+      setLogoStatus('');
+      await axios.post('/api/logo', formData);
+      setLogoVersion(v => v + 1);
+      setLogoStatus('Logo uploaded successfully');
+    } catch (err) {
+      const msg =
+        (err.response && err.response.data && err.response.data.error) ||
+        'Failed to upload logo';
+      setError(msg);
+    } finally {
+      event.target.value = '';
+    }
   };
 
   if (loading) return <div className="text-center mt-4">Loading...</div>;
@@ -176,6 +220,56 @@ function Payslip() {
           >
               Download PDF
           </button>
+          <label className="btn btn-outline-secondary btn-rounded no-print" style={{ marginBottom: 0 }}>
+            Upload Logo
+            <input
+              type="file"
+              accept="image/png,image/jpeg"
+              style={{ display: 'none' }}
+              onChange={handleLogoUpload}
+            />
+          </label>
+        </div>
+        {logoStatus && (
+          <div className="small text-muted mt-2">
+            {logoStatus}
+          </div>
+        )}
+        <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => setShowLogoInfo(prev => !prev)}
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: '999px',
+              border: '1px solid #6b7280',
+              background: showLogoInfo ? '#0d6efd' : 'transparent',
+              color: showLogoInfo ? '#ffffff' : '#374151',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 14,
+              cursor: 'pointer'
+            }}
+            aria-label="Show recommended logo size information"
+          >
+            !
+          </button>
+          {showLogoInfo && (
+            <div
+              className="small text-muted"
+              style={{
+                background: '#f9fafb',
+                borderRadius: 8,
+                padding: '8px 10px',
+                lineHeight: 1.4,
+                maxWidth: 420
+              }}
+            >
+              For better fit on the payslip, use a horizontal logo around 80–90 pixels wide and 40–50 pixels high. Sizes close to this, such as 82 × 46 pixels, are also fine.
+            </div>
+          )}
         </div>
       </div>
 
@@ -218,16 +312,11 @@ function Payslip() {
             <div className="classic-header">
               <img
                 className="brand-logo"
-                src={process.env.PUBLIC_URL + '/Logo.PNG'}
+                src={`${apiBase}/api/logo?v=${logoVersion}`}
                 alt="Company logo"
                 onError={(e) => {
-                    // Fallback: try lowercase, then hide if missing
-                    if (e.target.dataset.triedLower !== '1') {
-                        e.target.dataset.triedLower = '1';
-                        e.target.src = process.env.PUBLIC_URL + '/logo.png';
-                    } else {
-                        e.target.style.display = 'none';
-                    }
+                    e.target.style.display = 'none';
+                    setLogoStatus('No logo found. Please upload a PNG or JPEG logo.');
                 }}
               />
               <div className="company-block">
@@ -271,13 +360,48 @@ function Payslip() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr><td>Basic+HRA</td><td className="right">{fmt(basicHra)}</td><td>ESS</td><td className="right">{roundInt(slip.professionalTax)}</td></tr>
-                    <tr><td>Conveyance</td><td className="right">{fmt(slip.conveyanceAllowance)}</td><td>Advance</td><td className="right">{fmt(slip.advance)}</td></tr>
-                    <tr><td>Sales Incentive</td><td className="right">{fmt(slip.performanceIncentive)}</td><td>Loan</td><td className="right">{fmt(slip.loanDeduction)}</td></tr>
-                    <tr><td>Per Call Incentive</td><td className="right">{fmt(slip.perCall)}</td><td>Sales Debits</td><td className="right">{fmt(slip.salesDebits)}</td></tr>
-                    <tr><td>Attendance Incentive</td><td className="right">{fmt(slip.attendanceAllowance)}</td><td>Underperformance</td><td className="right">{fmt(slip.underPerformance)}</td></tr>
-                    <tr><td>Spl Allowance</td><td className="right">{fmt(slip.specialAllowance)}</td><td>Others</td><td className="right">{fmt(slip.otherDeduction)}</td></tr>
-                    <tr><td>Other Allowance</td><td className="right">{fmt(slip.otherAllowance)}</td><td></td><td></td></tr>
+                    <tr>
+                      <td>{labelFor('basicSalary', 'Basic+HRA')}</td>
+                      <td className="right">{fmt(basicHra)}</td>
+                      <td>{labelFor('professionalTax', 'ESS')}</td>
+                      <td className="right">{roundInt(slip.professionalTax)}</td>
+                    </tr>
+                    <tr>
+                      <td>{labelFor('conveyanceAllowance', 'Conveyance')}</td>
+                      <td className="right">{fmt(slip.conveyanceAllowance)}</td>
+                      <td>{labelFor('advance', 'Advance')}</td>
+                      <td className="right">{fmt(slip.advance)}</td>
+                    </tr>
+                    <tr>
+                      <td>{labelFor('performanceIncentive', 'Sales Incentive')}</td>
+                      <td className="right">{fmt(slip.performanceIncentive)}</td>
+                      <td>{labelFor('loanDeduction', 'Loan')}</td>
+                      <td className="right">{fmt(slip.loanDeduction)}</td>
+                    </tr>
+                    <tr>
+                      <td>{labelFor('perCall', 'Per Call Incentive')}</td>
+                      <td className="right">{fmt(slip.perCall)}</td>
+                      <td>{labelFor('salesDebits', 'Sales Debits')}</td>
+                      <td className="right">{fmt(slip.salesDebits)}</td>
+                    </tr>
+                    <tr>
+                      <td>{labelFor('attendanceAllowance', 'Attendance Incentive')}</td>
+                      <td className="right">{fmt(slip.attendanceAllowance)}</td>
+                      <td>{labelFor('underPerformance', 'Underperformance')}</td>
+                      <td className="right">{fmt(slip.underPerformance)}</td>
+                    </tr>
+                    <tr>
+                      <td>{labelFor('specialAllowance', 'Spl Allowance')}</td>
+                      <td className="right">{fmt(slip.specialAllowance)}</td>
+                      <td>{labelFor('otherDeduction', 'Others')}</td>
+                      <td className="right">{fmt(slip.otherDeduction)}</td>
+                    </tr>
+                    <tr>
+                      <td>{labelFor('otherAllowance', 'Other Allowance')}</td>
+                      <td className="right">{fmt(slip.otherAllowance)}</td>
+                      <td></td>
+                      <td></td>
+                    </tr>
                     <tr className="bold">
                       <td>Gross Salary</td><td className="right">{fmt(slip.grossSalary)}</td>
                       <td>Total Deductions</td><td className="right">{roundInt(slip.totalDeduction)}</td>
