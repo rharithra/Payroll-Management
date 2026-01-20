@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 
 const defaultFieldLabels = {
     basicSalary: 'Basic salary',
@@ -23,6 +24,8 @@ const defaultFieldLabels = {
     underPerformance: 'Under Performance',
     salesDebits: 'Sales Debits'
 };
+
+const ATTENDANCE_EXCEL_KEY = 'attendanceExcelImported';
 
 export default function AddEmployee() {
     // In AddEmployee component: initial state and totals calculation
@@ -73,7 +76,25 @@ export default function AddEmployee() {
 
     const [customBoxes, setCustomBoxes] = useState([]);
     const [customBoxValues, setCustomBoxValues] = useState({});
+    const [hiddenFields, setHiddenFields] = useState(() => {
+        try {
+            const raw = localStorage.getItem('salaryHiddenFields');
+            return raw ? JSON.parse(raw) : {};
+        } catch {
+            return {};
+        }
+    });
+    const [salaryDirty, setSalaryDirty] = useState(false);
     const [fieldLabels, setFieldLabels] = useState(defaultFieldLabels);
+
+    const [importedAttendance, setImportedAttendance] = useState(() => {
+        try {
+            const raw = localStorage.getItem(ATTENDANCE_EXCEL_KEY);
+            return raw ? JSON.parse(raw) : {};
+        } catch {
+            return {};
+        }
+    });
 
     useEffect(() => {
         try {
@@ -89,6 +110,12 @@ export default function AddEmployee() {
 
     useEffect(() => {
         try {
+            localStorage.setItem(ATTENDANCE_EXCEL_KEY, JSON.stringify(importedAttendance));
+        } catch {}
+    }, [importedAttendance]);
+
+    useEffect(() => {
+        try {
             const saved = localStorage.getItem('customBoxes');
             if (saved) {
                 const parsed = JSON.parse(saved);
@@ -98,10 +125,11 @@ export default function AddEmployee() {
         } catch {}
     }, []);
 
-    // Ensure state updates when customBoxes change (e.g. added new one)
     useEffect(() => {
-        // If needed, we can force a re-render or check consistency
-    }, [customBoxes]);
+        try {
+            localStorage.setItem('salaryHiddenFields', JSON.stringify(hiddenFields));
+        } catch {}
+    }, [hiddenFields]);
 
     const computeDerived = (s, currentBoxes = customBoxValues) => {
         const days = n(s.days);
@@ -171,6 +199,9 @@ export default function AddEmployee() {
             ...employee,
             [name]: isNumberField ? (value === '' ? null : parseFloat(value)) : value
         };
+        if (isNumberField) {
+            setSalaryDirty(true);
+        }
         setEmployee(computeDerived(updated));
     };
 
@@ -183,6 +214,9 @@ export default function AddEmployee() {
         }
         const nextValues = { ...customBoxValues, [label]: val };
         setCustomBoxValues(nextValues);
+        if (isNumeric) {
+            setSalaryDirty(true);
+        }
         setEmployee(prev => computeDerived(prev, nextValues));
     };
 
@@ -196,6 +230,17 @@ export default function AddEmployee() {
         });
     }, []);
 
+    const hideField = useCallback((fieldKey) => {
+        setHiddenFields(prev => ({ ...prev, [fieldKey]: true }));
+        setEmployee(prev => {
+            const next = { ...prev };
+            if (Object.prototype.hasOwnProperty.call(next, fieldKey)) {
+                next[fieldKey] = null;
+            }
+            return computeDerived(next);
+        });
+    }, [computeDerived]);
+
 
     // Fetch name/basic master list
     const [masters, setMasters] = useState([]);
@@ -208,20 +253,95 @@ export default function AddEmployee() {
 
     const handleMasterSelect = (e) => {
         const selectedEmpId = e.target.value || null;
-        const m = masters.find(x => x.employeeId === selectedEmpId);
-        const total = m?.basicSalary;
+        const key = (selectedEmpId || '').toString().trim().toLowerCase();
+        const m = masters.find(x =>
+            (x.employeeId != null ? x.employeeId : '').toString().trim().toLowerCase() === key
+        );
+        const totalRaw = m?.basicSalary;
+        const total = totalRaw == null ? null : Number(totalRaw);
         const shouldSplit = typeof total === 'number' && !Number.isNaN(total) && total > 0;
+        const base = shouldSplit ? total : null;
         const updated = {
             ...employee,
             employeeId: m?.employeeId ?? null,
             name: m?.name ?? '',
             designation: m?.designation ?? employee.designation,
-            basicSalary: shouldSplit ? parseFloat((total * 0.40).toFixed(2)) : (m?.basicSalary ?? employee.basicSalary),
-            dearnessAllowance: shouldSplit ? parseFloat((total * 0.30).toFixed(2)) : employee.dearnessAllowance,
-            hra: shouldSplit ? parseFloat((total * 0.30).toFixed(2)) : employee.hra
+            basicSalary: shouldSplit ? parseFloat((base * 0.40).toFixed(2)) : (m?.basicSalary ?? employee.basicSalary),
+            dearnessAllowance: shouldSplit ? parseFloat((base * 0.30).toFixed(2)) : employee.dearnessAllowance,
+            hra: shouldSplit ? parseFloat((base * 0.30).toFixed(2)) : employee.hra,
+            days: employee.days == null ? 30 : employee.days
         };
+        setSalaryDirty(true);
         setEmployee(computeDerived(updated));
         setJoinDate(m?.joinDate ?? '');
+        if (m) {
+            setAttendance(prev => ({
+                ...prev,
+                perMonthPermittedLeave: m.permittedLeave != null ? m.permittedLeave : prev.perMonthPermittedLeave,
+                perMonthPermissionLimit: m.permissionLimit != null ? m.permissionLimit : prev.perMonthPermissionLimit,
+            }));
+        }
+    };
+
+    const handleDownloadAttendanceTemplate = () => {
+        const monthYear = selectedMonth || (employee.salaryDate ? employee.salaryDate.slice(0, 7) : `${currentYear}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+        const header = ['Employee ID', 'Name', 'Salary Month (YYYY-MM)', 'Total Leave Days', 'Permission/Late Count'];
+        const rows = masters.map(m => [
+            m.employeeId || '',
+            m.name || '',
+            monthYear,
+            '',
+            ''
+        ]);
+        const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `attendance-${monthYear}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleAttendanceExcelUpload = (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const wb = XLSX.read(data, { type: 'array' });
+                const sheetName = wb.SheetNames[0];
+                const ws = wb.Sheets[sheetName];
+                const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+                const map = {};
+                rows.forEach((row) => {
+                    const empId = String(row['Employee ID'] || '').trim();
+                    const monthRaw = String(row['Salary Month (YYYY-MM)'] || '').trim();
+                    if (!empId || !monthRaw) return;
+                    const normalizedMonth = monthRaw.length === 7 ? monthRaw : '';
+                    if (!normalizedMonth) return;
+                    const leaveVal = parseFloat(row['Total Leave Days'] || 0) || 0;
+                    const permVal = parseFloat(row['Permission/Late Count'] || 0) || 0;
+                    const key = `${normalizedMonth}|${empId}`;
+                    map[key] = {
+                        totalLeave: leaveVal,
+                        totalPermission: permVal
+                    };
+                });
+                setImportedAttendance(map);
+            } catch (err) {
+                console.error('Failed to parse attendance Excel', err);
+            } finally {
+                event.target.value = '';
+            }
+        };
+        reader.readAsArrayBuffer(file);
     };
 
     function EditableLabel({ fieldKey, defaultText }) {
@@ -465,10 +585,47 @@ export default function AddEmployee() {
         setShowMoreReadonly(false);
         setShowAttendanceModal(false);
         setJoinDate('');
-        setAttendance({ totalLeave: 0, totalPermission: 0, permittedLeave: 0, absentDays: 0 });
+        setAttendance({
+            totalLeave: 0,
+            totalPermission: 0,
+            permittedLeave: 0,
+            absentDays: 0,
+            perMonthPermittedLeave: null,
+            perMonthPermissionLimit: null
+        });
         setError(null);
         setShowErrorModal(false);
         setSuccess(null);
+        setSalaryDirty(false);
+    };
+
+    const handleReset = () => {
+        setCustomBoxValues({});
+        setEmployee(prev => computeDerived({
+            ...prev,
+            basicSalary: null,
+            hra: null,
+            dearnessAllowance: null,
+            conveyanceAllowance: null,
+            specialAllowance: null,
+            leads: null,
+            performanceIncentive: null,
+            perCall: null,
+            areaAllowance: null,
+            os: null,
+            roadshow: null,
+            review: null,
+            dresscode: null,
+            attendanceAllowance: null,
+            arrears: null,
+            bonus: null,
+            professionalTax: null,
+            advance: null,
+            loanDeduction: null,
+            salesDebits: null,
+            underPerformance: null
+        }));
+        setSalaryDirty(false);
     };
 
     const enterSalary = () => {
@@ -489,6 +646,8 @@ export default function AddEmployee() {
         totalPermission: 0,
         permittedLeave: 0,
         absentDays: 0,
+        perMonthPermittedLeave: null,
+        perMonthPermissionLimit: null,
     });
     const [selectedMonth, setSelectedMonth] = useState('');
 
@@ -496,6 +655,7 @@ export default function AddEmployee() {
     const [showAttendance, setShowAttendance] = useState(false);
     const [showSalary, setShowSalary] = useState(false);
     const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+    const [showAttendanceRules, setShowAttendanceRules] = useState(false);
     const [showMoreAllowances, setShowMoreAllowances] = useState(false);
     const [showMoreDeductions, setShowMoreDeductions] = useState(false);
     const [showMoreReadonly, setShowMoreReadonly] = useState(false);
@@ -526,36 +686,58 @@ export default function AddEmployee() {
         return 2;                        // > 1 year
     }, []);
 
-    // Derive permittedLeave, absentDays, and working days
     useEffect(() => {
-        // Use selected salary month (YYYY-MM), or derive from salaryDate
+        const monthYear = selectedMonth || (employee.salaryDate ? employee.salaryDate.slice(0, 7) : null);
+        const empId = employee.employeeId;
+        if (!monthYear || !empId) return;
+        const key = `${monthYear}|${empId}`;
+        const rec = importedAttendance[key];
+        if (!rec) return;
+        setAttendance(prev => ({
+            ...prev,
+            totalLeave: rec.totalLeave ?? 0,
+            totalPermission: rec.totalPermission ?? 0
+        }));
+    }, [employee.employeeId, employee.salaryDate, selectedMonth, importedAttendance]);
+
+    useEffect(() => {
         const monthYear = selectedMonth || (employee.salaryDate ? employee.salaryDate.slice(0, 7) : null);
         const computedPermitted = calcPermittedLeave(joinDate, monthYear);
-        const permitted = overridePermittedLeave ? (attendance.permittedLeave || 0) : computedPermitted;
+        const basePermitted = computedPermitted;
+        const allowedPaidLeaves = attendance.perMonthPermittedLeave != null ? attendance.perMonthPermittedLeave : basePermitted;
 
         const leaveTaken = attendance.totalLeave || 0;
-        const usedByLeave = Math.min(leaveTaken, permitted);
-        const remainingRights = permitted - usedByLeave;
-        const leaveAbsent = Math.max(leaveTaken - permitted, 0);
-
         const permissionCount = attendance.totalPermission || 0;
-        const permissionImpact = permissionCount > 2 ? (permissionCount - 2) * 0.5 : 0;
-        const permissionAfterComp = Math.max(permissionImpact - remainingRights, 0);
+        const permissionAllowance = attendance.perMonthPermissionLimit != null ? attendance.perMonthPermissionLimit : 3;
+        const leaveAbsent = leaveTaken > allowedPaidLeaves ? (leaveTaken - allowedPaidLeaves) : 0;
+        const extraPermissions = Math.max(permissionCount - permissionAllowance, 0);
+        const rawPermissionAbsent = extraPermissions * 0.5;
+        const permissionAbsent = leaveTaken > 0 ? rawPermissionAbsent : 0;
 
-        const absent = leaveAbsent + permissionAfterComp;
-        const workingDays = Math.max(30 - absent, 0);
+        const payAffectingAbsent = leaveAbsent + permissionAbsent;
+        const workingDays = Math.max(30 - payAffectingAbsent, 0);
+        const displayAbsent = leaveTaken + permissionAbsent;
 
         setAttendance((prev) => ({
             ...prev,
-            permittedLeave: permitted,
-            absentDays: absent,
+            permittedLeave: allowedPaidLeaves,
+            absentDays: displayAbsent,
         }));
 
         setEmployee((prev) => ({
             ...prev,
             days: workingDays,
         }));
-    }, [joinDate, selectedMonth, attendance.totalLeave, attendance.totalPermission, overridePermittedLeave, attendance.permittedLeave, calcPermittedLeave]);
+    }, [
+        joinDate,
+        selectedMonth,
+        employee.salaryDate,
+        attendance.totalLeave,
+        attendance.totalPermission,
+        attendance.perMonthPermittedLeave,
+        attendance.perMonthPermissionLimit,
+        calcPermittedLeave,
+    ]);
 
     return (
         <div className="page add-salary">
@@ -713,30 +895,38 @@ export default function AddEmployee() {
                                             <label htmlFor="designation">Designation</label>
                                             <input id="designation" name="designation" type="text" value={employee.designation ?? ''} onChange={handleChange}/>
                                         </div>
+                                        {!hiddenFields.basicSalary && (
                                         <div className="form-item">
                                             <label htmlFor="basicSalary">
                                                 <EditableLabel fieldKey="basicSalary" defaultText="Basic salary" />
                                             </label>
                                             <input id="basicSalary" name="basicSalary" type="number" value={employee.basicSalary ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
+                                        {!hiddenFields.specialAllowance && (
                                         <div className="form-item">
                                             <label htmlFor="specialAllowance">
                                                 <EditableLabel fieldKey="specialAllowance" defaultText="Special allowance" />
                                             </label>
                                             <input id="specialAllowance" name="specialAllowance" type="number" value={employee.specialAllowance ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
+                                        {!hiddenFields.hra && (
                                         <div className="form-item">
                                             <label htmlFor="hra">
                                                 <EditableLabel fieldKey="hra" defaultText="House Rent Allowance" />
                                             </label>
                                             <input id="hra" name="hra" type="number" value={employee.hra ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
+                                        {!hiddenFields.dearnessAllowance && (
                                         <div className="form-item">
                                             <label htmlFor="dearnessAllowance">
                                                 <EditableLabel fieldKey="dearnessAllowance" defaultText="Dearness Allowance" />
                                             </label>
                                             <input id="dearnessAllowance" name="dearnessAllowance" type="number" value={employee.dearnessAllowance ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
                                         {customBoxes.filter(cb => cb.category === 'Employee').map(cb => (
                                             <div key={cb.id} className="form-item">
                                                 <label>{cb.label}</label>
@@ -753,75 +943,89 @@ export default function AddEmployee() {
 
                                 {activeTab === 'Earnings' && (
                                     <div className="form-grid">
+                                        {!hiddenFields.attendanceAllowance && (
                                         <div className="form-item">
                                             <label htmlFor="attendanceAllowance">
                                                 <EditableLabel fieldKey="attendanceAllowance" defaultText="Attendance allowance" />
                                             </label>
                                             <input id="attendanceAllowance" name="attendanceAllowance" type="number" value={employee.attendanceAllowance ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
+                                        {!hiddenFields.areaAllowance && (
                                         <div className="form-item">
                                             <label htmlFor="areaAllowance">
                                                 <EditableLabel fieldKey="areaAllowance" defaultText="Area allowance" />
                                             </label>
                                             <input id="areaAllowance" name="areaAllowance" type="number" value={employee.areaAllowance ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
+                                        {!hiddenFields.dresscode && (
                                         <div className="form-item">
                                             <label htmlFor="dresscode">
                                                 <EditableLabel fieldKey="dresscode" defaultText="Dresscode" />
                                             </label>
                                             <input id="dresscode" name="dresscode" type="number" value={employee.dresscode ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
+                                        {!hiddenFields.os && (
                                         <div className="form-item">
                                             <label htmlFor="os">
                                                 <EditableLabel fieldKey="os" defaultText="OS" />
                                             </label>
                                             <input id="os" name="os" type="number" value={employee.os ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
+                                        {!hiddenFields.performanceIncentive && (
                                         <div className="form-item">
                                             <label htmlFor="performanceIncentive">
                                                 <EditableLabel fieldKey="performanceIncentive" defaultText="Sales incentive" />
                                             </label>
                                             <input id="performanceIncentive" name="performanceIncentive" type="number" value={employee.performanceIncentive ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
+                                        {!hiddenFields.review && (
                                         <div className="form-item">
                                             <label htmlFor="review">
                                                 <EditableLabel fieldKey="review" defaultText="Review" />
                                             </label>
                                             <input id="review" name="review" type="number" value={employee.review ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
+                                        {!hiddenFields.roadshow && (
                                         <div className="form-item">
                                             <label htmlFor="roadshow">
                                                 <EditableLabel fieldKey="roadshow" defaultText="Roadshow promo" />
                                             </label>
                                             <input id="roadshow" name="roadshow" type="number" value={employee.roadshow ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
+                                        {!hiddenFields.perCall && (
                                         <div className="form-item">
                                             <label htmlFor="perCall">
                                                 <EditableLabel fieldKey="perCall" defaultText="Per-call inc" />
                                             </label>
                                             <input id="perCall" name="perCall" type="number" value={employee.perCall ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
+                                        {!hiddenFields.arrears && (
                                         <div className="form-item">
                                             <label htmlFor="arrears">
                                                 <EditableLabel fieldKey="arrears" defaultText="Arrears" />
                                             </label>
                                             <input id="arrears" name="arrears" type="number" value={employee.arrears ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
+                                        {!hiddenFields.bonus && (
                                         <div className="form-item">
                                             <label htmlFor="bonus">
                                                 <EditableLabel fieldKey="bonus" defaultText="Bonus" />
                                             </label>
                                             <input id="bonus" name="bonus" type="number" value={employee.bonus ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
                                         {customBoxes.filter(cb => cb.category === 'Earnings').map(cb => (
                                             <div key={cb.id} className="form-item">
-                                                <label>{cb.label} <button type="button" style={{ fontSize: '0.7em', color: 'red', border: 'none', background: 'none' }} onClick={() => {
-                                                    setCustomBoxes(prev => prev.filter(x => x.id !== cb.id));
-                                                    const next = { ...customBoxValues };
-                                                    delete next[cb.label];
-                                                    setCustomBoxValues(next);
-                                                    setEmployee(prevEmp => computeDerived(prevEmp, next));
-                                                }}>(x)</button></label>
+                                                <label>{cb.label}</label>
                                                 <input
                                                     type="number"
                                                     value={(customBoxValues[cb.label] ?? '')}
@@ -837,36 +1041,46 @@ export default function AddEmployee() {
 
                                 {activeTab === 'Deductions' && (
                                     <div className="form-grid">
+                                        {!hiddenFields.advance && (
                                         <div className="form-item">
                                             <label htmlFor="advance">
                                                 <EditableLabel fieldKey="advance" defaultText="Advance" />
                                             </label>
                                             <input id="advance" name="advance" type="number" value={employee.advance ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
+                                        {!hiddenFields.loanDeduction && (
                                         <div className="form-item">
                                             <label htmlFor="loanDeduction">
                                                 <EditableLabel fieldKey="loanDeduction" defaultText="Loan Deduction" />
                                             </label>
                                             <input id="loanDeduction" name="loanDeduction" type="number" value={employee.loanDeduction ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
+                                        {!hiddenFields.professionalTax && (
                                         <div className="form-item">
                                             <label htmlFor="professionalTax">
                                                 <EditableLabel fieldKey="professionalTax" defaultText="Professional Tax" />
                                             </label>
                                             <input id="professionalTax" name="professionalTax" type="number" value={employee.professionalTax ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
+                                        {!hiddenFields.underPerformance && (
                                         <div className="form-item">
                                             <label htmlFor="underPerformance">
                                                 <EditableLabel fieldKey="underPerformance" defaultText="Under Performance" />
                                             </label>
                                             <input id="underPerformance" name="underPerformance" type="number" value={employee.underPerformance ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
+                                        {!hiddenFields.salesDebits && (
                                         <div className="form-item">
                                             <label htmlFor="salesDebits">
                                                 <EditableLabel fieldKey="salesDebits" defaultText="Sales Debits" />
                                             </label>
                                             <input id="salesDebits" name="salesDebits" type="number" value={employee.salesDebits ?? ''} onChange={handleChange}/>
                                         </div>
+                                        )}
                                         {customBoxes.filter(cb => cb.category === 'Deductions').map(cb => (
                                             <div key={cb.id} className="form-item">
                                                 <label>{cb.label}</label>
@@ -893,13 +1107,7 @@ export default function AddEmployee() {
                                         
                                         {customBoxes.filter(cb => cb.category === 'Summary').map(cb => (
                                             <div key={cb.id} className="form-item">
-                                                <label>{cb.label} <button type="button" style={{ fontSize: '0.7em', color: 'red', border: 'none', background: 'none' }} onClick={() => {
-                                                    setCustomBoxes(prev => prev.filter(x => x.id !== cb.id));
-                                                    const next = { ...customBoxValues };
-                                                    delete next[cb.label];
-                                                    setCustomBoxValues(next);
-                                                    setEmployee(prevEmp => computeDerived(prevEmp, next));
-                                                }}>(x)</button></label>
+                                                <label>{cb.label}</label>
                                                 <input
                                                     type="text"
                                                     value={(customBoxValues[cb.label] ?? '')}
@@ -912,8 +1120,30 @@ export default function AddEmployee() {
                                 )}
                             </div>
                             <div style={{ width: 300 }}>
-                                <div className="summary-card" style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 16 }}>
-                                    <div style={{ fontWeight: 700, marginBottom: 8 }}>Attendance Summary</div>
+                                <div className="summary-card" style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, marginBottom: 12 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                        <div style={{ fontWeight: 700 }}>Attendance Summary</div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowAttendanceRules(prev => !prev)}
+                                            style={{
+                                                width: 26,
+                                                height: 26,
+                                                borderRadius: '999px',
+                                                border: '1px solid #6b7280',
+                                                background: showAttendanceRules ? '#0d6efd' : 'transparent',
+                                                color: showAttendanceRules ? '#ffffff' : '#374151',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                fontSize: 14,
+                                                cursor: 'pointer'
+                                            }}
+                                            aria-label="Show attendance calculation information"
+                                        >
+                                            !
+                                        </button>
+                                    </div>
                                     {(!employee.days || employee.days <= 0) ? (
                                         <div style={{ background: '#f9fafb', border: '1px dashed #d1d5db', borderRadius: 8, padding: 12, color: '#6b7280' }}>
                                             No Attendance Data
@@ -943,11 +1173,55 @@ export default function AddEmployee() {
                                         <button
                                             type="button"
                                             className="btn btn-outline-primary btn-rounded"
-                                            onClick={() => setShowAttendanceModal(true)}
+                                            onClick={() => { setShowAttendanceRules(false); setShowAttendanceModal(true); }}
                                         >
                                             Edit Attendance
                                         </button>
                                     </div>
+                                    {showAttendanceRules && (
+                                        <div
+                                            style={{
+                                                marginTop: 12,
+                                                padding: 12,
+                                                background: '#f9fafb',
+                                                borderRadius: 8,
+                                                fontSize: 13,
+                                                color: '#374151',
+                                                lineHeight: 1.4
+                                            }}
+                                        >
+                                            <div style={{ fontWeight: 600, marginBottom: 4 }}>How attendance is calculated</div>
+                                            <ul style={{ paddingLeft: 18, marginBottom: 0 }}>
+                                                <li>One month is treated as 30 days for salary calculation.</li>
+                                                <li>Paid leave per month depends on service: less than 1 year – 0 days, 1 year – 1 day, more than 1 year – 2 days.</li>
+                                                <li>Leave within the paid limit does not reduce salary.</li>
+                                                <li>Leave above the paid limit is treated as absent days and reduces salary.</li>
+                                                <li>Permissions/Late entries are allowed up to the monthly limit (default 3) without effect.</li>
+                                                <li>Each extra permission above the limit counts as 0.5 day absent.</li>
+                                                <li>Total absent days = leave taken + extra permission half‑days.</li>
+                                                <li>Working days used for salary = 30 − (unpaid leave + extra permission absent).</li>
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline-secondary btn-sm"
+                                        onClick={handleDownloadAttendanceTemplate}
+                                        disabled={!masters.length}
+                                    >
+                                        Download Attendance Excel
+                                    </button>
+                                    <label className="btn btn-outline-secondary btn-sm" style={{ marginBottom: 0 }}>
+                                        Upload Attendance Excel
+                                        <input
+                                            type="file"
+                                            accept=".xlsx,.xls"
+                                            style={{ display: 'none' }}
+                                            onChange={handleAttendanceExcelUpload}
+                                        />
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -988,7 +1262,7 @@ export default function AddEmployee() {
                             <button
                                 type="button"
                                 disabled={loading}
-                                className="btn btn-primary btn-rounded"
+                                className={`btn btn-rounded ${salaryDirty ? 'btn-primary' : 'btn-outline-secondary'}`}
                                 onClick={handleSubmit}
                             >
                                 Save
@@ -1003,9 +1277,9 @@ export default function AddEmployee() {
                             <button
                                 type="button"
                                 className="btn btn-secondary btn-rounded"
-                                onClick={() => navigate(-1)}
+                                onClick={handleReset}
                             >
-                                Cancel
+                                Reset
                             </button>
                         </div>
                         </>
@@ -1093,9 +1367,9 @@ export default function AddEmployee() {
                             </div>
 
                             <div className="form-item">
-                                <label htmlFor="permissionCount">Permission/Late Count</label>
+                                <label htmlFor="attendancePermission">Permission/Late Count</label>
                                 <input
-                                    id="permissionCount"
+                                    id="attendancePermission"
                                     type="number"
                                     value={attendance.totalPermission}
                                     onChange={(e) =>
@@ -1108,20 +1382,7 @@ export default function AddEmployee() {
                             </div>
 
                             <div className="form-item">
-                                <label>Permitted Leave</label>
-                                <input
-                                    type="number"
-                                    value={attendance.permittedLeave}
-                                    onChange={(e) => {
-                                        const val = parseFloat(e.target.value || 0);
-                                        setOverridePermittedLeave(true);
-                                        setAttendance(prev => ({ ...prev, permittedLeave: val }));
-                                    }}
-                                />
-                            </div>
-
-                            <div className="form-item">
-                                <label>Absent Days (auto)</label>
+                                <label>Absent Days</label>
                                 <input
                                     type="number"
                                     readOnly
@@ -1132,7 +1393,7 @@ export default function AddEmployee() {
                             </div>
 
                             <div className="form-item">
-                                <label>Working Days (auto)</label>
+                                <label>Working Days</label>
                                 <input
                                     type="number"
                                     readOnly

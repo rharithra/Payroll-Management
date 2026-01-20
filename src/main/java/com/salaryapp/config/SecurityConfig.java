@@ -35,6 +35,7 @@ public class SecurityConfig {
                 .requestMatchers("/", "/index.html", "/static/**", "/manifest.json").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/employees/status").permitAll()
                 .requestMatchers(HttpMethod.GET, "/employees/status").permitAll()
+                .requestMatchers("/api/logo").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/api/**").authenticated()
@@ -49,6 +50,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(java.util.List.of(
+            "http://localhost:3000",
             "https://harithra.in",
             "https://www.harithra.in",
             "https://payroll-management-7p3z.onrender.com",

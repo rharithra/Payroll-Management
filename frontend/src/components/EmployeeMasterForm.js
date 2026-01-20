@@ -6,6 +6,8 @@ function EmployeeMasterForm() {
   const [name, setName] = useState('');
   const [designation, setDesignation] = useState('');        // NEW
   const [basicSalary, setBasicSalary] = useState('');
+  const [permissionLimit, setPermissionLimit] = useState('');
+  const [permittedLeave, setPermittedLeave] = useState('');
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
@@ -38,6 +40,8 @@ function EmployeeMasterForm() {
           setName(m.name || '');
           setDesignation(m.designation || '');
           setBasicSalary(m.basicSalary ?? '');
+          setPermissionLimit(m.permissionLimit ?? '');
+          setPermittedLeave(m.permittedLeave ?? '');
           setFormData(prev => ({
             ...prev,
             employeeId: m.employeeId || '',
@@ -79,7 +83,9 @@ function EmployeeMasterForm() {
         designation,
         employeeId: newId,
         basicSalary: basicSalary === '' ? null : parseFloat(basicSalary),
-        joinDate: formData.joinDate
+        joinDate: formData.joinDate,
+        permissionLimit: permissionLimit === '' ? 0 : parseInt(permissionLimit, 10),
+        permittedLeave: permittedLeave === '' ? 0 : parseInt(permittedLeave, 10)
       };
       if (isEdit) {
         await axios.put(`/api/employee-masters/${id}`, payload, { headers: { 'Content-Type': 'application/json' } });
@@ -121,6 +127,24 @@ function EmployeeMasterForm() {
               <div className="form-item">
                 <label>Total Salary</label>
                 <input type="number" value={basicSalary} onChange={e => setBasicSalary(e.target.value)} placeholder="Total" />
+              </div>
+              <div className="form-item">
+                <label>Permission/Late Count</label>
+                <input
+                  type="number"
+                  value={permissionLimit}
+                  onChange={e => setPermissionLimit(e.target.value)}
+                  placeholder="Permissions per month"
+                />
+              </div>
+              <div className="form-item">
+                <label>Permitted Leave</label>
+                <input
+                  type="number"
+                  value={permittedLeave}
+                  onChange={e => setPermittedLeave(e.target.value)}
+                  placeholder="Leave days per month"
+                />
               </div>
               <div className="form-item">
                 <label>Date of Joining</label>

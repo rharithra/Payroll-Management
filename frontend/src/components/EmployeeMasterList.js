@@ -12,6 +12,30 @@ function EmployeeMasterList() {
   const [newLabel, setNewLabel] = useState('');
   const [newCategory, setNewCategory] = useState('Earnings');
 
+  const builtinCatalog = [
+    { key: 'basicSalary', label: 'Basic salary', category: 'Employee' },
+    { key: 'specialAllowance', label: 'Special allowance', category: 'Employee' },
+    { key: 'hra', label: 'House Rent Allowance', category: 'Employee' },
+    { key: 'dearnessAllowance', label: 'Dearness Allowance', category: 'Employee' },
+
+    { key: 'attendanceAllowance', label: 'Attendance allowance', category: 'Earnings' },
+    { key: 'areaAllowance', label: 'Area allowance', category: 'Earnings' },
+    { key: 'dresscode', label: 'Dresscode', category: 'Earnings' },
+    { key: 'os', label: 'OS', category: 'Earnings' },
+    { key: 'performanceIncentive', label: 'Sales incentive', category: 'Earnings' },
+    { key: 'review', label: 'Review', category: 'Earnings' },
+    { key: 'roadshow', label: 'Roadshow promo', category: 'Earnings' },
+    { key: 'perCall', label: 'Per-call inc', category: 'Earnings' },
+    { key: 'arrears', label: 'Arrears', category: 'Earnings' },
+    { key: 'bonus', label: 'Bonus', category: 'Earnings' },
+
+    { key: 'advance', label: 'Advance', category: 'Deductions' },
+    { key: 'loanDeduction', label: 'Loan Deduction', category: 'Deductions' },
+    { key: 'professionalTax', label: 'Professional Tax', category: 'Deductions' },
+    { key: 'underPerformance', label: 'Under Performance', category: 'Deductions' },
+    { key: 'salesDebits', label: 'Sales Debits', category: 'Deductions' }
+  ];
+
   useEffect(() => {
     const fetchMasters = async () => {
       try {
@@ -161,15 +185,70 @@ function EmployeeMasterList() {
                   if (!label) return;
                   const next = [...customBoxes, { id: Date.now(), label, category: newCategory }];
                   setCustomBoxes(next);
+                  try {
+                    localStorage.setItem('customBoxes', JSON.stringify(next));
+                  } catch {}
                   setNewLabel('');
+                  alert('Field added successfully');
                 }}
               >
                 Add
               </button>
+              <button
+                type="button"
+                className="btn btn-outline-danger btn-rounded"
+                onClick={() => {
+                  const label = newLabel.trim();
+                  if (!label) return;
+                  const match = customBoxes.find(
+                    (x) => x.label === label && x.category === newCategory
+                  );
+                  if (!match) {
+                    try {
+                      const rawLabels = localStorage.getItem('salaryFieldLabels');
+                      const labelOverrides = rawLabels ? JSON.parse(rawLabels) : {};
+                      const lower = label.toLowerCase();
+                      const builtin = builtinCatalog.find((b) => {
+                        if (b.category !== newCategory) return false;
+                        const effective =
+                          (labelOverrides && labelOverrides[b.key]) || b.label || '';
+                        return effective.trim().toLowerCase() === lower;
+                      });
+                      if (!builtin) {
+                        alert('No matching custom component or standard field for this label and tab');
+                        return;
+                      }
+                      if (!window.confirm(`Hide the "${label}" field from this tab?`)) return;
+                      let hidden = {};
+                      try {
+                        const rawHidden = localStorage.getItem('salaryHiddenFields');
+                        hidden = rawHidden ? JSON.parse(rawHidden) : {};
+                      } catch {
+                        hidden = {};
+                      }
+                      hidden[builtin.key] = true;
+                      localStorage.setItem('salaryHiddenFields', JSON.stringify(hidden));
+                      alert('Field hidden. It will no longer be shown in Add Salary.');
+                      setNewLabel('');
+                      return;
+                    } catch {
+                      alert('Failed to update field visibility');
+                      return;
+                    }
+                  }
+                  if (!window.confirm('Delete this custom component?')) return;
+                  const next = customBoxes.filter((x) => x.id !== match.id);
+                  setCustomBoxes(next);
+                  try {
+                    localStorage.setItem('customBoxes', JSON.stringify(next));
+                  } catch {}
+                  setNewLabel('');
+                }}
+              >
+                Delete
+              </button>
             </div>
-            <div>
-              {/* Custom components list hidden as per request */}
-            </div>
+            <div />
           </div>
         </div>
       )}
