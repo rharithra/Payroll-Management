@@ -11,6 +11,7 @@ function EmployeeMasterList() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [newCategory, setNewCategory] = useState('Earnings');
+  const [newEmployeeCategory, setNewEmployeeCategory] = useState('');
 
   const builtinCatalog = [
     { key: 'basicSalary', label: 'Basic salary', category: 'Employee' },
@@ -55,7 +56,14 @@ function EmployeeMasterList() {
       const saved = localStorage.getItem('customBoxes');
       if (saved) {
         const parsed = JSON.parse(saved);
-        const normalized = Array.isArray(parsed) ? parsed.map(x => ({ id: x.id, label: x.label, category: x.category || 'Earnings' })) : [];
+        const normalized = Array.isArray(parsed)
+          ? parsed.map(x => ({
+              id: x.id,
+              label: x.label,
+              category: x.category || 'Earnings',
+              employeeCategory: x.employeeCategory || ''
+            }))
+          : [];
         setCustomBoxes(normalized);
       }
       setIsLoaded(true);
@@ -95,6 +103,7 @@ function EmployeeMasterList() {
               <th>Employee ID</th>
               <th>Name</th>
               <th>Designation</th>
+              <th>Category</th>
               <th>Total Salary</th>
               <th>Join Date</th>
               <th>Actions</th>
@@ -107,6 +116,7 @@ function EmployeeMasterList() {
                   <td>{m.employeeId ?? ''}</td>
                   <td>{m.name ?? ''}</td>
                   <td>{m.designation ?? ''}</td>
+                  <td>{m.category ?? ''}</td>
                   <td>{m.basicSalary ?? ''}</td>
                   <td>{m.joinDate ?? ''}</td>
                   <td className="no-print">
@@ -132,7 +142,7 @@ function EmployeeMasterList() {
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="text-center">No employees found</td>
+                <td colSpan={7} className="text-center">No employees found</td>
               </tr>
             )}
           </tbody>
@@ -163,7 +173,15 @@ function EmployeeMasterList() {
               <div style={{ fontWeight: 700, fontSize: 18 }}>Custom Components</div>
               <button type="button" className="btn btn-secondary btn-rounded" onClick={() => setShowCustomModal(false)}>Close</button>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: 8,
+                marginBottom: 12,
+                alignItems: 'center',
+                justifyContent: 'flex-start'
+              }}
+            >
               <input
                 type="text"
                 placeholder="Label"
@@ -177,13 +195,35 @@ function EmployeeMasterList() {
                 <option value="Deductions">Deductions</option>
                 <option value="Summary">Summary</option>
               </select>
+              <select value={newEmployeeCategory} onChange={(e) => setNewEmployeeCategory(e.target.value)}>
+                <option value="">All</option>
+                {Array.from(
+                  new Set(
+                    (masters || [])
+                      .map(m => (m.category || '').trim())
+                      .filter(Boolean)
+                  )
+                ).map(category => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
                 className="btn btn-primary btn-rounded"
                 onClick={() => {
                   const label = newLabel.trim();
                   if (!label) return;
-                  const next = [...customBoxes, { id: Date.now(), label, category: newCategory }];
+                  const next = [
+                    ...customBoxes,
+                    {
+                      id: Date.now(),
+                      label,
+                      category: newCategory,
+                      employeeCategory: newEmployeeCategory
+                    }
+                  ];
                   setCustomBoxes(next);
                   try {
                     localStorage.setItem('customBoxes', JSON.stringify(next));
@@ -197,6 +237,7 @@ function EmployeeMasterList() {
               <button
                 type="button"
                 className="btn btn-outline-danger btn-rounded"
+                style={{ marginLeft: 4, marginRight: 16 }}
                 onClick={() => {
                   const label = newLabel.trim();
                   if (!label) return;

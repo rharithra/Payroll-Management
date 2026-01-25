@@ -4,7 +4,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 function EmployeeMasterForm() {
   const [name, setName] = useState('');
-  const [designation, setDesignation] = useState('');        // NEW
+  const [designation, setDesignation] = useState('');
+  const [category, setCategory] = useState('');
   const [basicSalary, setBasicSalary] = useState('');
   const [permissionLimit, setPermissionLimit] = useState('');
   const [permittedLeave, setPermittedLeave] = useState('');
@@ -39,6 +40,7 @@ function EmployeeMasterForm() {
           const m = res.data || {};
           setName(m.name || '');
           setDesignation(m.designation || '');
+          setCategory(m.category || '');
           setBasicSalary(m.basicSalary ?? '');
           setPermissionLimit(m.permissionLimit ?? '');
           setPermittedLeave(m.permittedLeave ?? '');
@@ -81,6 +83,7 @@ function EmployeeMasterForm() {
       const payload = {
         name,
         designation,
+        category,
         employeeId: newId,
         basicSalary: basicSalary === '' ? null : parseFloat(basicSalary),
         joinDate: formData.joinDate,
@@ -123,6 +126,35 @@ function EmployeeMasterForm() {
               <div className="form-item">
                 <label>Designation</label>
                 <input type="text" value={designation} onChange={e => setDesignation(e.target.value)} placeholder="Designation" />
+              </div>
+              <div className="form-item">
+                <label>Category</label>
+                <input
+                  type="text"
+                  value={category}
+                  onChange={e => setCategory(e.target.value)}
+                  list="employee-category-options"
+                  placeholder="Category"
+                />
+                {Array.from(
+                  new Set(
+                    (masters || [])
+                      .map(m => (m.category || '').trim())
+                      .filter(Boolean)
+                  )
+                ).length > 0 && (
+                  <datalist id="employee-category-options">
+                    {Array.from(
+                      new Set(
+                        (masters || [])
+                          .map(m => (m.category || '').trim())
+                          .filter(Boolean)
+                      )
+                    ).map(option => (
+                      <option key={option} value={option} />
+                    ))}
+                  </datalist>
+                )}
               </div>
               <div className="form-item">
                 <label>Total Salary</label>

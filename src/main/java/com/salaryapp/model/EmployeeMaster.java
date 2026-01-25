@@ -26,10 +26,10 @@ public class EmployeeMaster {
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate joinDate;
 
-    // Number of permissions the company offers per month for this employee
+    private String category;
+
     private Integer permissionLimit;
 
-    // Number of fully paid leave days per month for this employee
     private Integer permittedLeave;
 
     public Long getId() { return id; }
@@ -49,6 +49,9 @@ public class EmployeeMaster {
 
     public LocalDate getJoinDate() { return joinDate; }
     public void setJoinDate(LocalDate joinDate) { this.joinDate = joinDate; }
+
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
 
     public Integer getPermissionLimit() { return permissionLimit; }
     public void setPermissionLimit(Integer permissionLimit) { this.permissionLimit = permissionLimit; }

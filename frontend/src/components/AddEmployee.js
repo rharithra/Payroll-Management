@@ -25,7 +25,21 @@ const defaultFieldLabels = {
     salesDebits: 'Sales Debits'
 };
 
+const allowanceFieldKeys = [
+    'attendanceAllowance',
+    'areaAllowance',
+    'dresscode',
+    'os',
+    'performanceIncentive',
+    'review',
+    'roadshow',
+    'perCall',
+    'arrears',
+    'bonus'
+];
+
 const ATTENDANCE_EXCEL_KEY = 'attendanceExcelImported';
+const ALLOWANCES_EXCEL_KEY = 'allowancesExcelImported';
 
 export default function AddEmployee() {
     // In AddEmployee component: initial state and totals calculation
@@ -114,12 +128,34 @@ export default function AddEmployee() {
         } catch {}
     }, [importedAttendance]);
 
+    const [importedAllowances, setImportedAllowances] = useState(() => {
+        try {
+            const raw = localStorage.getItem(ALLOWANCES_EXCEL_KEY);
+            return raw ? JSON.parse(raw) : {};
+        } catch {
+            return {};
+        }
+    });
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(ALLOWANCES_EXCEL_KEY, JSON.stringify(importedAllowances));
+        } catch {}
+    }, [importedAllowances]);
+
     useEffect(() => {
         try {
             const saved = localStorage.getItem('customBoxes');
             if (saved) {
                 const parsed = JSON.parse(saved);
-                const normalized = Array.isArray(parsed) ? parsed.map(x => ({ id: x.id, label: x.label, category: x.category || 'Earnings' })) : [];
+                const normalized = Array.isArray(parsed)
+                    ? parsed.map(x => ({
+                        id: x.id,
+                        label: x.label,
+                        category: x.category || 'Earnings',
+                        employeeCategory: x.employeeCategory || ''
+                    }))
+                    : [];
                 setCustomBoxes(normalized);
             }
         } catch {}
@@ -149,8 +185,12 @@ export default function AddEmployee() {
             n(s.perCall) +
             n(s.attendanceAllowance);
 
-        // Aggregate other allowances
-        const extraEarn = (customBoxes || []).filter(cb => cb.category === 'Earnings').reduce((acc, cb) => acc + n(currentBoxes[cb.label]), 0);
+        const extraEarn = (customBoxes || [])
+            .filter(cb =>
+                cb.category === 'Earnings' &&
+                (!cb.employeeCategory || cb.employeeCategory === category)
+            )
+            .reduce((acc, cb) => acc + n(currentBoxes[cb.label]), 0);
         const otherAllowance =
             n(s.leads) +
             n(s.areaAllowance) +
@@ -167,7 +207,12 @@ export default function AddEmployee() {
         // NEW: ESS as 5% of gross; store in professionalTax
         const professionalTax = grossSalary * 0.05;
 
-        const extraDed = (customBoxes || []).filter(cb => cb.category === 'Deductions').reduce((acc, cb) => acc + n(currentBoxes[cb.label]), 0);
+        const extraDed = (customBoxes || [])
+            .filter(cb =>
+                cb.category === 'Deductions' &&
+                (!cb.employeeCategory || cb.employeeCategory === category)
+            )
+            .reduce((acc, cb) => acc + n(currentBoxes[cb.label]), 0);
         const otherDeduction = n(s.advance) + n(s.salesDebits) + n(s.underPerformance) + extraDed;
         const totalDeduction =
             professionalTax + n(s.incomeTax) + n(s.providentFund) + n(s.loanDeduction) + otherDeduction;
@@ -244,6 +289,7 @@ export default function AddEmployee() {
 
     // Fetch name/basic master list
     const [masters, setMasters] = useState([]);
+    const [category, setCategory] = useState('');
 
     useEffect(() => {
         axios.get('/api/employee-masters')
@@ -275,11 +321,46 @@ export default function AddEmployee() {
         setEmployee(computeDerived(updated));
         setJoinDate(m?.joinDate ?? '');
         if (m) {
+            setCategory(m.category || '');
             setAttendance(prev => ({
                 ...prev,
                 perMonthPermittedLeave: m.permittedLeave != null ? m.permittedLeave : prev.perMonthPermittedLeave,
                 perMonthPermissionLimit: m.permissionLimit != null ? m.permissionLimit : prev.perMonthPermissionLimit,
             }));
+        } else {
+            setCategory('');
+        }
+    };
+
+    const handleCategoryChange = async (e) => {
+        const value = e.target.value;
+        setCategory(value);
+        setCustomBoxValues({});
+        setEmployee(prev => computeDerived(prev, {}));
+        const empId = (employee.employeeId || '').toString().trim().toLowerCase();
+        if (!empId) {
+            return;
+        }
+        const master = masters.find(x =>
+            (x.employeeId != null ? x.employeeId : '').toString().trim().toLowerCase() === empId
+        );
+        if (!master || !master.id) {
+            return;
+        }
+        const payload = {
+            name: master.name,
+            designation: master.designation,
+            category: value || null,
+            employeeId: master.employeeId,
+            basicSalary: master.basicSalary,
+            joinDate: master.joinDate,
+            permissionLimit: master.permissionLimit,
+            permittedLeave: master.permittedLeave
+        };
+        try {
+            await axios.put(`/api/employee-masters/${master.id}`, payload, { headers: { 'Content-Type': 'application/json' } });
+            setMasters(prev => prev.map(x => x.id === master.id ? { ...x, category: value } : x));
+        } catch (err) {
         }
     };
 
@@ -337,6 +418,122 @@ export default function AddEmployee() {
                 setImportedAttendance(map);
             } catch (err) {
                 console.error('Failed to parse attendance Excel', err);
+            } finally {
+                event.target.value = '';
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    };
+
+    const getAllowanceColumnConfig = () => {
+        const builtin = allowanceFieldKeys
+            .filter((key) => !hiddenFields[key])
+            .map((key) => ({
+                type: 'builtin',
+                key,
+                header: fieldLabels[key] || key
+            }));
+        const customLabels = Array.from(
+            new Set(
+                customBoxes
+                    .filter((cb) => cb.category === 'Earnings')
+                    .map((cb) => cb.label)
+                    .filter(Boolean)
+            )
+        );
+        const custom = customLabels.map((label) => ({
+            type: 'custom',
+            label,
+            header: label
+        }));
+        return [...builtin, ...custom];
+    };
+
+    const handleDownloadAllowancesTemplate = () => {
+        const monthYear = selectedMonth || (employee.salaryDate ? employee.salaryDate.slice(0, 7) : `${currentYear}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+        const columns = getAllowanceColumnConfig();
+        const header = ['Employee ID', 'Name', 'Salary Month (YYYY-MM)', ...columns.map((c) => c.header)];
+        const rows = masters.map((m) => {
+            const base = [
+                m.employeeId || '',
+                m.name || '',
+                monthYear
+            ];
+            const values = columns.map(() => '');
+            return [...base, ...values];
+        });
+        const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Allowances');
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `allowances-${monthYear}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleAllowancesExcelUpload = (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const wb = XLSX.read(data, { type: 'array' });
+                const sheetName = wb.SheetNames[0];
+                const ws = wb.Sheets[sheetName];
+                const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+                const columns = getAllowanceColumnConfig();
+                const builtinByHeader = {};
+                const customByHeader = {};
+                columns.forEach((col) => {
+                    const key = (col.header || '').trim().toLowerCase();
+                    if (!key) return;
+                    if (col.type === 'builtin') {
+                        builtinByHeader[key] = col.key;
+                    } else if (col.type === 'custom') {
+                        customByHeader[key] = col.label;
+                    }
+                });
+                const map = {};
+                rows.forEach((row) => {
+                    const empId = String(row['Employee ID'] || '').trim();
+                    const monthRaw = String(row['Salary Month (YYYY-MM)'] || '').trim();
+                    if (!empId || !monthRaw) return;
+                    const normalizedMonth = monthRaw.length === 7 ? monthRaw : '';
+                    if (!normalizedMonth) return;
+                    const key = `${normalizedMonth}|${empId}`;
+                    const current = map[key] || { builtin: {}, custom: {} };
+                    const builtinValues = { ...current.builtin };
+                    const customValues = { ...current.custom };
+                    Object.keys(row).forEach((colName) => {
+                        const normalized = colName.trim().toLowerCase();
+                        if (normalized === 'employee id' || normalized === 'salary month (yyyy-mm)') {
+                            return;
+                        }
+                        const builtinKey = builtinByHeader[normalized];
+                        const customLabel = customByHeader[normalized];
+                        if (builtinKey) {
+                            const val = parseFloat(row[colName] || 0) || 0;
+                            builtinValues[builtinKey] = val;
+                        } else if (customLabel) {
+                            const val = parseFloat(row[colName] || 0) || 0;
+                            customValues[customLabel] = val;
+                        }
+                    });
+                    map[key] = {
+                        builtin: builtinValues,
+                        custom: customValues
+                    };
+                });
+                setImportedAllowances(map);
+            } catch (err) {
+                console.error('Failed to parse allowances Excel', err);
             } finally {
                 event.target.value = '';
             }
@@ -578,6 +775,7 @@ export default function AddEmployee() {
             salesDebits: null,
             underPerformance: null
         }));
+        setCategory('');
         setShowAttendance(false);
         setShowSalary(false);
         setShowMoreAllowances(false);
@@ -626,6 +824,7 @@ export default function AddEmployee() {
             underPerformance: null
         }));
         setSalaryDirty(false);
+        setCategory('');
     };
 
     const enterSalary = () => {
@@ -739,6 +938,27 @@ export default function AddEmployee() {
         calcPermittedLeave,
     ]);
 
+    useEffect(() => {
+        const monthYear = selectedMonth || (employee.salaryDate ? employee.salaryDate.slice(0, 7) : null);
+        const empId = employee.employeeId;
+        if (!monthYear || !empId) return;
+        const key = `${monthYear}|${empId}`;
+        const rec = importedAllowances[key];
+        if (!rec) return;
+        if (rec.builtin && typeof rec.builtin === 'object') {
+            setEmployee((prev) => ({
+                ...prev,
+                ...rec.builtin
+            }));
+        }
+        if (rec.custom && typeof rec.custom === 'object') {
+            setCustomBoxValues((prev) => ({
+                ...prev,
+                ...rec.custom
+            }));
+        }
+    }, [employee.employeeId, employee.salaryDate, selectedMonth, importedAllowances]);
+
     return (
         <div className="page add-salary">
             {/* Success toast, loading, error */}
@@ -793,9 +1013,19 @@ export default function AddEmployee() {
 
                 <form onSubmit={handleSubmit}>
                     {/* Header bar */}
-                    <div className="header-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
+                    <div
+                        className="header-bar"
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 16,
+                            marginBottom: 16,
+                            paddingRight: 8
+                        }}
+                    >
                         <h2 className="section-title" style={{ margin: 0 }}>Add Salary Details</h2>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
                             {(() => {
                                 const parts = (selectedMonth || `${currentYear}-${String(now.getMonth()+1).padStart(2,'0')}`).split('-');
                                 const yy = parseInt(parts[0], 10);
@@ -843,12 +1073,34 @@ export default function AddEmployee() {
                                     ))}
                                 </select>
                             </div>
+                            <div>
+                                <select
+                                    aria-label="Select Category"
+                                    value={category}
+                                    onChange={handleCategoryChange}
+                                    disabled={!employee.employeeId}
+                                >
+                                    <option value="">Select category</option>
+                                    {Array.from(
+                                        new Set(
+                                            (masters || [])
+                                                .map(m => (m.category || '').trim())
+                                                .filter(Boolean)
+                                        )
+                                    ).map(cat => (
+                                        <option key={cat} value={cat}>
+                                            {cat}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
-                        <div>
+                        <div style={{ flexShrink: 0 }}>
                             <button
                                 type="button"
                                 className="btn btn-primary btn-rounded"
                                 onClick={() => setShowSalary(true)}
+                                style={{ marginRight: 16 }}
                             >
                                 Start Salary Entry
                             </button>
@@ -927,7 +1179,12 @@ export default function AddEmployee() {
                                             <input id="dearnessAllowance" name="dearnessAllowance" type="number" value={employee.dearnessAllowance ?? ''} onChange={handleChange}/>
                                         </div>
                                         )}
-                                        {customBoxes.filter(cb => cb.category === 'Employee').map(cb => (
+                                        {customBoxes
+                                            .filter(cb =>
+                                                cb.category === 'Employee' &&
+                                                (!cb.employeeCategory || cb.employeeCategory === category)
+                                            )
+                                            .map(cb => (
                                             <div key={cb.id} className="form-item">
                                                 <label>{cb.label}</label>
                                                 <input
@@ -1023,7 +1280,12 @@ export default function AddEmployee() {
                                             <input id="bonus" name="bonus" type="number" value={employee.bonus ?? ''} onChange={handleChange}/>
                                         </div>
                                         )}
-                                        {customBoxes.filter(cb => cb.category === 'Earnings').map(cb => (
+                                        {customBoxes
+                                            .filter(cb =>
+                                                cb.category === 'Earnings' &&
+                                                (!cb.employeeCategory || cb.employeeCategory === category)
+                                            )
+                                            .map(cb => (
                                             <div key={cb.id} className="form-item">
                                                 <label>{cb.label}</label>
                                                 <input
@@ -1036,6 +1298,27 @@ export default function AddEmployee() {
 
 
                                         <div className="form-item"><label>Other allowance</label><input type="number" readOnly aria-readonly="true" value={employee.otherAllowance?.toFixed(2) ?? '0.00'} style={{ background:'#f3f4f6', color:'#6b7280' }}/></div>
+                                        <div className="form-item" style={{ gridColumn: '1 / -1' }}>
+                                            <div className="btn-container btn-right">
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-outline-secondary btn-sm"
+                                                    onClick={handleDownloadAllowancesTemplate}
+                                                    disabled={!masters.length}
+                                                >
+                                                    Download Allowances Excel
+                                                </button>
+                                                <label className="btn btn-outline-secondary btn-sm" style={{ marginBottom: 0 }}>
+                                                    Upload Allowances Excel
+                                                    <input
+                                                        type="file"
+                                                        accept=".xlsx,.xls"
+                                                        style={{ display: 'none' }}
+                                                        onChange={handleAllowancesExcelUpload}
+                                                    />
+                                                </label>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
 
@@ -1081,7 +1364,12 @@ export default function AddEmployee() {
                                             <input id="salesDebits" name="salesDebits" type="number" value={employee.salesDebits ?? ''} onChange={handleChange}/>
                                         </div>
                                         )}
-                                        {customBoxes.filter(cb => cb.category === 'Deductions').map(cb => (
+                                        {customBoxes
+                                            .filter(cb =>
+                                                cb.category === 'Deductions' &&
+                                                (!cb.employeeCategory || cb.employeeCategory === category)
+                                            )
+                                            .map(cb => (
                                             <div key={cb.id} className="form-item">
                                                 <label>{cb.label}</label>
                                                 <input
@@ -1105,7 +1393,12 @@ export default function AddEmployee() {
                                         <div className="form-item"><label>Net salary</label><input type="number" readOnly aria-readonly="true" value={employee.netSalary?.toFixed(2) ?? '0.00'} style={{ background:'#f3f4f6', color:'#6b7280' }}/></div>
                                         <div className="form-item"><label htmlFor="salaryDate">Salary Date</label><input id="salaryDate" name="salaryDate" type="date" value={employee.salaryDate ?? ''} onChange={handleChange}/></div>
                                         
-                                        {customBoxes.filter(cb => cb.category === 'Summary').map(cb => (
+                                        {customBoxes
+                                            .filter(cb =>
+                                                cb.category === 'Summary' &&
+                                                (!cb.employeeCategory || cb.employeeCategory === category)
+                                            )
+                                            .map(cb => (
                                             <div key={cb.id} className="form-item">
                                                 <label>{cb.label}</label>
                                                 <input
