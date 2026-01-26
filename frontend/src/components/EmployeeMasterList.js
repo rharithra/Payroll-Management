@@ -385,6 +385,30 @@ function EmployeeMasterList() {
               >
                 Add
               </button>
+              <button
+                type="button"
+                className="btn btn-outline-danger btn-rounded"
+                onClick={() => {
+                  const name = newCategoryName.trim();
+                  if (!name) return;
+                  const lower = name.toLowerCase();
+                  const exists = storedCategories.some((c) => c.toLowerCase() === lower);
+                  if (!exists) {
+                    alert('Category not found');
+                    return;
+                  }
+                  if (!window.confirm('Delete this category?')) return;
+                  const updated = storedCategories.filter((c) => c.toLowerCase() !== lower);
+                  setStoredCategories(updated);
+                  try {
+                    localStorage.setItem('employeeCategories', JSON.stringify(updated));
+                  } catch {}
+                  setNewCategoryName('');
+                }}
+                style={{ marginLeft: 4 }}
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
