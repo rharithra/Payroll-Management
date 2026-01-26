@@ -56,7 +56,9 @@ function EmployeeMasterList() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('employeeCategories');
+      const tenantId = (typeof window !== 'undefined' && window.localStorage) ? (localStorage.getItem('tenantId') || '') : '';
+      const key = tenantId ? `employeeCategories_${tenantId}` : 'employeeCategories';
+      const saved = localStorage.getItem(key);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
@@ -378,7 +380,9 @@ function EmployeeMasterList() {
                   const updated = [...storedCategories, name];
                   setStoredCategories(updated);
                   try {
-                    localStorage.setItem('employeeCategories', JSON.stringify(updated));
+                    const tenantId = (typeof window !== 'undefined' && window.localStorage) ? (localStorage.getItem('tenantId') || '') : '';
+                    const key = tenantId ? `employeeCategories_${tenantId}` : 'employeeCategories';
+                    localStorage.setItem(key, JSON.stringify(updated));
                   } catch {}
                   setNewCategoryName('');
                 }}
@@ -401,7 +405,9 @@ function EmployeeMasterList() {
                   const updated = storedCategories.filter((c) => c.toLowerCase() !== lower);
                   setStoredCategories(updated);
                   try {
-                    localStorage.setItem('employeeCategories', JSON.stringify(updated));
+                    const tenantId = (typeof window !== 'undefined' && window.localStorage) ? (localStorage.getItem('tenantId') || '') : '';
+                    const key = tenantId ? `employeeCategories_${tenantId}` : 'employeeCategories';
+                    localStorage.setItem(key, JSON.stringify(updated));
                   } catch {}
                   setNewCategoryName('');
                 }}

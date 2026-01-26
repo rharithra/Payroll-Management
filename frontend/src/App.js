@@ -7,6 +7,7 @@ import axios from 'axios';
 // Eager load critical components
 import Home from './components/Home';
 import Login from './components/Login';
+import EmployeeMasterList from './components/EmployeeMasterList';
 
 // Lazy load other components for performance
 const EmployeeList = lazy(() => import('./components/EmployeeList'));
@@ -14,7 +15,6 @@ const AddEmployee = lazy(() => import('./components/AddEmployee'));
 const EditEmployee = lazy(() => import('./components/EditEmployee'));
 const EmployeeMasterForm = lazy(() => import('./components/EmployeeMasterForm'));
 const Payslip = lazy(() => import('./components/Payslip'));
-const EmployeeMasterList = lazy(() => import('./components/EmployeeMasterList'));
 const Register = lazy(() => import('./components/Register'));
 
 // Set base URL for API requests
@@ -41,9 +41,8 @@ function App() {
   };
   return (
     <BrowserRouter>
-      {/* Title bar: use className instead of inline styles */}
       <nav className="top-nav">
-        <Link to="/">Home</Link>
+        <Link to="/home">Home</Link>
         {authed && (
           <>
             <Link to="/add">Add Salary Details</Link>
@@ -55,7 +54,17 @@ function App() {
         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
           {!authed && <Link to="/login" className="btn btn-sm btn-success">Login</Link>}
           {!authed && <Link to="/register" className="btn btn-sm btn-outline-primary">Register</Link>}
-          <button onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('role'); window.dispatchEvent(new Event('storage')); }} className="btn btn-sm btn-outline-secondary">Logout</button>
+          <button
+            onClick={() => {
+              localStorage.removeItem('token');
+              localStorage.removeItem('role');
+              localStorage.removeItem('tenantId');
+              window.dispatchEvent(new Event('storage'));
+            }}
+            className="btn btn-sm btn-outline-secondary"
+          >
+            Logout
+          </button>
           <span style={{ marginLeft: 8 }}>Role: {role || 'Guest'}</span>
         </span>
       </nav>
@@ -63,7 +72,8 @@ function App() {
       <div style={{ padding: 12 }}>
         <Suspense fallback={<div className="text-center mt-5"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div></div>}>
         <Routes>
-          <Route path="/" element={authed ? <Home /> : <Navigate to="/login" replace />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
           <Route path="/add" element={<RequireAuth><AddEmployee /></RequireAuth>} />
           <Route path="/edit/:id" element={<RequireAuth><EditEmployee /></RequireAuth>} />
           <Route path="/employees" element={<RequireAuth><EmployeeList /></RequireAuth>} />
