@@ -290,12 +290,33 @@ export default function AddEmployee() {
     // Fetch name/basic master list
     const [masters, setMasters] = useState([]);
     const [category, setCategory] = useState('');
+    const [categoryOptions, setCategoryOptions] = useState([]);
 
     useEffect(() => {
         axios.get('/api/employee-masters')
             .then(res => setMasters(res.data || []))
             .catch(() => setMasters([]));
     }, []);
+
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem('employeeCategories');
+            const fromStorage = saved ? JSON.parse(saved) : [];
+            const storageList = Array.isArray(fromStorage)
+                ? fromStorage.map(x => String(x).trim()).filter(Boolean)
+                : [];
+            const fromMasters = (masters || [])
+                .map(m => (m.category || '').trim())
+                .filter(Boolean);
+            const combined = Array.from(new Set([...storageList, ...fromMasters]));
+            setCategoryOptions(combined);
+        } catch {
+            const fromMasters = (masters || [])
+                .map(m => (m.category || '').trim())
+                .filter(Boolean);
+            setCategoryOptions(Array.from(new Set(fromMasters)));
+        }
+    }, [masters]);
 
     const handleMasterSelect = (e) => {
         const selectedEmpId = e.target.value || null;
@@ -1081,13 +1102,7 @@ export default function AddEmployee() {
                                     disabled={!employee.employeeId}
                                 >
                                     <option value="">Select category</option>
-                                    {Array.from(
-                                        new Set(
-                                            (masters || [])
-                                                .map(m => (m.category || '').trim())
-                                                .filter(Boolean)
-                                        )
-                                    ).map(cat => (
+                                    {categoryOptions.map(cat => (
                                         <option key={cat} value={cat}>
                                             {cat}
                                         </option>

@@ -7,11 +7,14 @@ function EmployeeMasterList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCustomModal, setShowCustomModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [customBoxes, setCustomBoxes] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [newCategory, setNewCategory] = useState('Earnings');
   const [newEmployeeCategory, setNewEmployeeCategory] = useState('');
+  const [storedCategories, setStoredCategories] = useState([]);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   const builtinCatalog = [
     { key: 'basicSalary', label: 'Basic salary', category: 'Employee' },
@@ -53,6 +56,25 @@ function EmployeeMasterList() {
 
   useEffect(() => {
     try {
+      const saved = localStorage.getItem('employeeCategories');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setStoredCategories(parsed.map(x => String(x).trim()).filter(Boolean));
+        }
+      }
+    } catch {}
+  }, []);
+
+  const allCategories = Array.from(
+    new Set([
+      ...storedCategories,
+      ...(masters || []).map(m => (m.category || '').trim()).filter(Boolean)
+    ])
+  );
+
+  useEffect(() => {
+    try {
       const saved = localStorage.getItem('customBoxes');
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -90,6 +112,14 @@ function EmployeeMasterList() {
           onClick={() => setShowCustomModal(true)}
         >
           Custom Components
+        </button>
+        <button
+          type="button"
+          className="btn btn-outline-secondary btn-rounded"
+          style={{ marginLeft: 8 }}
+          onClick={() => setShowCategoryModal(true)}
+        >
+          Add Category
         </button>
       </div>
 
@@ -197,13 +227,7 @@ function EmployeeMasterList() {
               </select>
               <select value={newEmployeeCategory} onChange={(e) => setNewEmployeeCategory(e.target.value)}>
                 <option value="">All</option>
-                {Array.from(
-                  new Set(
-                    (masters || [])
-                      .map(m => (m.category || '').trim())
-                      .filter(Boolean)
-                  )
-                ).map(category => (
+                {allCategories.map(category => (
                   <option key={category} value={category}>
                     {category}
                   </option>
@@ -215,6 +239,16 @@ function EmployeeMasterList() {
                 onClick={() => {
                   const label = newLabel.trim();
                   if (!label) return;
+                  const exists = customBoxes.some(
+                    (x) =>
+                      x.label === label &&
+                      x.category === newCategory &&
+                      x.employeeCategory === newEmployeeCategory
+                  );
+                  if (exists) {
+                    alert('This custom component already exists for the selected tab and category');
+                    return;
+                  }
                   const next = [
                     ...customBoxes,
                     {
@@ -242,7 +276,10 @@ function EmployeeMasterList() {
                   const label = newLabel.trim();
                   if (!label) return;
                   const match = customBoxes.find(
-                    (x) => x.label === label && x.category === newCategory
+                    (x) =>
+                      x.label === label &&
+                      x.category === newCategory &&
+                      (newEmployeeCategory ? x.employeeCategory === newEmployeeCategory : !x.employeeCategory)
                   );
                   if (!match) {
                     try {
@@ -290,6 +327,65 @@ function EmployeeMasterList() {
               </button>
             </div>
             <div />
+          </div>
+        </div>
+      )}
+      {showCategoryModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 8,
+              padding: 16,
+              width: '90%',
+              maxWidth: 400
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 18 }}>Categories</div>
+              <button type="button" className="btn btn-secondary btn-rounded" onClick={() => setShowCategoryModal(false)}>Close</button>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="text"
+                placeholder="Category name"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                className="btn btn-primary btn-rounded"
+                onClick={() => {
+                  const name = newCategoryName.trim();
+                  if (!name) return;
+                  const lower = name.toLowerCase();
+                  const exists = storedCategories.some(c => c.toLowerCase() === lower);
+                  if (exists) {
+                    alert('Category already exists');
+                    return;
+                  }
+                  const updated = [...storedCategories, name];
+                  setStoredCategories(updated);
+                  try {
+                    localStorage.setItem('employeeCategories', JSON.stringify(updated));
+                  } catch {}
+                  setNewCategoryName('');
+                }}
+              >
+                Add
+              </button>
+            </div>
           </div>
         </div>
       )}

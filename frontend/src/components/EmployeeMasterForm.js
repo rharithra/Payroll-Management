@@ -20,6 +20,7 @@ function EmployeeMasterForm() {
     joinDate: ''
   });
   const [masters, setMasters] = useState([]); // NEW: existing IDs for uniqueness check
+  const [categoryOptions, setCategoryOptions] = useState([]);
   const { id } = useParams();
   const isEdit = Boolean(id);
   const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -32,6 +33,26 @@ function EmployeeMasterForm() {
       .then(res => setMasters(res.data || []))
       .catch(() => setMasters([]));
   }, []);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('employeeCategories');
+      const fromStorage = saved ? JSON.parse(saved) : [];
+      const storageList = Array.isArray(fromStorage)
+        ? fromStorage.map(x => String(x).trim()).filter(Boolean)
+        : [];
+      const fromMasters = (masters || [])
+        .map(m => (m.category || '').trim())
+        .filter(Boolean);
+      const combined = Array.from(new Set([...storageList, ...fromMasters]));
+      setCategoryOptions(combined);
+    } catch {
+      const fromMasters = (masters || [])
+        .map(m => (m.category || '').trim())
+        .filter(Boolean);
+      setCategoryOptions(Array.from(new Set(fromMasters)));
+    }
+  }, [masters]);
 
   useEffect(() => {
     if (isEdit) {
@@ -129,32 +150,17 @@ function EmployeeMasterForm() {
               </div>
               <div className="form-item">
                 <label>Category</label>
-                <input
-                  type="text"
+                <select
                   value={category}
                   onChange={e => setCategory(e.target.value)}
-                  list="employee-category-options"
-                  placeholder="Category"
-                />
-                {Array.from(
-                  new Set(
-                    (masters || [])
-                      .map(m => (m.category || '').trim())
-                      .filter(Boolean)
-                  )
-                ).length > 0 && (
-                  <datalist id="employee-category-options">
-                    {Array.from(
-                      new Set(
-                        (masters || [])
-                          .map(m => (m.category || '').trim())
-                          .filter(Boolean)
-                      )
-                    ).map(option => (
-                      <option key={option} value={option} />
-                    ))}
-                  </datalist>
-                )}
+                >
+                  <option value="">Select category</option>
+                  {categoryOptions.map(option => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="form-item">
                 <label>Total Salary</label>
