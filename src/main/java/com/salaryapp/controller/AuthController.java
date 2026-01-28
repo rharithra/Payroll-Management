@@ -42,6 +42,7 @@ public class AuthController {
         u.setUsername(request.getUsername());
         u.setPassword(encoder.encode(request.getPassword()));
         u.setRole(request.getRole() != null ? request.getRole().toUpperCase() : "EMPLOYEE");
+        u.setTenantId(request.getUsername());
         users.save(u);
         return ResponseEntity.ok(Map.of("ok", true));
     }
@@ -56,7 +57,13 @@ public class AuthController {
         if (!encoder.matches(request.getPassword(), u.getPassword())) {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
-        String token = jwt.createToken(u.getUsername(), u.getRole());
-        return ResponseEntity.ok(Map.of("token", token, "role", u.getRole()));
+        String tenantId = u.getTenantId();
+        if (tenantId == null || tenantId.trim().isEmpty()) {
+            tenantId = u.getUsername();
+            u.setTenantId(tenantId);
+            users.save(u);
+        }
+        String token = jwt.createToken(u.getUsername(), u.getRole(), tenantId);
+        return ResponseEntity.ok(Map.of("token", token, "role", u.getRole(), "tenantId", tenantId));
     }
 }

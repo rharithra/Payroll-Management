@@ -54,6 +54,9 @@ public class Employee {
     private String role;
     private Double experience;
 
+    @Column(length = 64)
+    private String tenantId;
+
     // NEW: fields used by UI and service calculations
     private Double days;
     private Double dearnessAllowance;
@@ -206,4 +209,7 @@ public class Employee {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getTenantId() { return tenantId; }
+    public void setTenantId(String tenantId) { this.tenantId = tenantId; }
 }

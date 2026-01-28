@@ -32,6 +32,9 @@ public class EmployeeMaster {
 
     private Integer permittedLeave;
 
+    @Column(length = 64)
+    private String tenantId;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -58,4 +61,7 @@ public class EmployeeMaster {
 
     public Integer getPermittedLeave() { return permittedLeave; }
     public void setPermittedLeave(Integer permittedLeave) { this.permittedLeave = permittedLeave; }
+
+    public String getTenantId() { return tenantId; }
+    public void setTenantId(String tenantId) { this.tenantId = tenantId; }
 }

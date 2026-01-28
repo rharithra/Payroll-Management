@@ -24,11 +24,16 @@ export default function Login() {
       });
       console.log('Login response:', res.data);
       
-      const { token, role } = res.data || {};
+      const { token, role, tenantId } = res.data || {};
       localStorage.setItem('token', token || '');
       localStorage.setItem('role', role || '');
+      if (tenantId) {
+        localStorage.setItem('tenantId', tenantId);
+      } else {
+        localStorage.removeItem('tenantId');
+      }
       window.dispatchEvent(new Event('storage'));
-      navigate('/');
+      navigate('/home');
     } catch (err) {
       console.error('Login error:', err);
       console.error('Error response:', err.response);

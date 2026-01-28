@@ -14,6 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -50,20 +52,23 @@ public class EmployeeService {
     }
     
     public List<EmployeeDTO> getAllEmployees() {
-        return employeeRepository.findAll().stream()
+        String tenantId = currentTenantId();
+        return employeeRepository.findAllByTenantId(tenantId).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     public Page<EmployeeDTO> getAllEmployees(Pageable pageable) {
-        return employeeRepository.findAll(pageable)
+        String tenantId = currentTenantId();
+        return employeeRepository.findAllByTenantId(tenantId, pageable)
                 .map(this::convertToDTO);
     }
 
     public List<EmployeeDTO> getEmployeesByMonth(int year, int month) {
         java.time.LocalDate start = java.time.LocalDate.of(year, month, 1);
         java.time.LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
-        return employeeRepository.findAllBySalaryDateBetween(start, end).stream()
+        String tenantId = currentTenantId();
+        return employeeRepository.findAllBySalaryDateBetweenAndTenantId(start, end, tenantId).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
@@ -71,19 +76,22 @@ public class EmployeeService {
     public Page<EmployeeDTO> getEmployeesByMonth(int year, int month, Pageable pageable) {
         java.time.LocalDate start = java.time.LocalDate.of(year, month, 1);
         java.time.LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
-        return employeeRepository.findAllBySalaryDateBetween(start, end, pageable)
+        String tenantId = currentTenantId();
+        return employeeRepository.findAllBySalaryDateBetweenAndTenantId(start, end, tenantId, pageable)
                 .map(this::convertToDTO);
     }
 
     public boolean exists(String employeeId, int year, int month) {
         java.time.LocalDate start = java.time.LocalDate.of(year, month, 1);
         java.time.LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
-        return employeeRepository.existsByEmployeeIdAndSalaryDateBetween(employeeId, start, end);
+        String tenantId = currentTenantId();
+        return employeeRepository.existsByEmployeeIdAndSalaryDateBetweenAndTenantId(employeeId, start, end, tenantId);
     }
     
     public EmployeeDTO getEmployeeById(Long id) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
+        enforceTenant(employee);
         return convertToDTO(employee);
     }
     
@@ -102,7 +110,8 @@ public class EmployeeService {
         if (employee.getEmployeeId() == null || employee.getEmployeeId().trim().isEmpty()) {
             String name = employee.getName() != null ? employee.getName().trim() : null;
             if (name != null && !name.isEmpty()) {
-                java.util.Optional<com.salaryapp.model.EmployeeMaster> m = employeeMasterRepository.findByName(name);
+                String tenantId = currentTenantId();
+                java.util.Optional<com.salaryapp.model.EmployeeMaster> m = employeeMasterRepository.findByNameAndTenantId(name, tenantId);
                 if (m.isPresent()) {
                     employee.setEmployeeId(m.get().getEmployeeId());
                 }
@@ -116,18 +125,21 @@ public class EmployeeService {
             String empId = employee.getEmployeeId().trim();
             boolean dup = false;
             if (!dup && employee.getSalaryMonth() != null) {
-                dup = employeeRepository.existsByEmployeeIdAndSalaryMonth(empId, employee.getSalaryMonth());
+                String tenantId = currentTenantId();
+                dup = employeeRepository.existsByEmployeeIdAndSalaryMonthAndTenantId(empId, employee.getSalaryMonth(), tenantId);
             }
             if (!dup && employee.getSalaryDate() != null) {
                 java.time.LocalDate d = employee.getSalaryDate();
                 java.time.LocalDate start = d.withDayOfMonth(1);
                 java.time.LocalDate end = d.withDayOfMonth(d.lengthOfMonth());
-                dup = employeeRepository.existsByEmployeeIdAndSalaryDateBetween(empId, start, end);
+                String tenantId = currentTenantId();
+                dup = employeeRepository.existsByEmployeeIdAndSalaryDateBetweenAndTenantId(empId, start, end, tenantId);
             }
             if (dup) {
                 throw new DataIntegrityViolationException("Salary already exists for this employee in this month");
             }
         }
+        employee.setTenantId(currentTenantId());
         normalizeEmployee(employee);
         calculateSalaryComponents(employee);
         
@@ -138,6 +150,7 @@ public class EmployeeService {
     public EmployeeDTO updateEmployee(Long id, EmployeeDTO employeeDTO) {
         Employee existingEmployee = employeeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
+        enforceTenant(existingEmployee);
         
         Employee employee = convertToEntity(employeeDTO);
         employee.setId(id);
@@ -154,7 +167,8 @@ public class EmployeeService {
         if (employee.getEmployeeId() == null || employee.getEmployeeId().trim().isEmpty()) {
             String name = employee.getName() != null ? employee.getName().trim() : null;
             if (name != null && !name.isEmpty()) {
-                java.util.Optional<com.salaryapp.model.EmployeeMaster> m = employeeMasterRepository.findByName(name);
+                String tenantId = currentTenantId();
+                java.util.Optional<com.salaryapp.model.EmployeeMaster> m = employeeMasterRepository.findByNameAndTenantId(name, tenantId);
                 if (m.isPresent()) {
                     employee.setEmployeeId(m.get().getEmployeeId());
                 }
@@ -168,18 +182,21 @@ public class EmployeeService {
             String empId = employee.getEmployeeId().trim();
             Employee existingSameMonth = null;
             if (employee.getSalaryMonth() != null) {
-                existingSameMonth = employeeRepository.findFirstByEmployeeIdAndSalaryMonth(empId, employee.getSalaryMonth());
+                String tenantId = currentTenantId();
+                existingSameMonth = employeeRepository.findFirstByEmployeeIdAndSalaryMonthAndTenantId(empId, employee.getSalaryMonth(), tenantId);
             }
             if (existingSameMonth == null && employee.getSalaryDate() != null) {
                 java.time.LocalDate d = employee.getSalaryDate();
                 java.time.LocalDate start = d.withDayOfMonth(1);
                 java.time.LocalDate end = d.withDayOfMonth(d.lengthOfMonth());
-                existingSameMonth = employeeRepository.findFirstByEmployeeIdAndSalaryDateBetween(empId, start, end);
+                String tenantId = currentTenantId();
+                existingSameMonth = employeeRepository.findFirstByEmployeeIdAndSalaryDateBetweenAndTenantId(empId, start, end, tenantId);
             }
             if (existingSameMonth != null && !existingSameMonth.getId().equals(id)) {
                 throw new DataIntegrityViolationException("Salary already exists for this employee in this month");
             }
         }
+        employee.setTenantId(existingEmployee.getTenantId());
         normalizeEmployee(employee);
         calculateSalaryComponents(employee);
         
@@ -188,12 +205,16 @@ public class EmployeeService {
     }
     
     public void deleteEmployee(Long id) {
+        Employee existingEmployee = employeeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
+        enforceTenant(existingEmployee);
         employeeRepository.deleteById(id);
     }
 
     public EmployeeDTO submitForApproval(Long id) {
         Employee e = employeeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
+        enforceTenant(e);
         e.setStatus("SUBMITTED");
         Employee saved = employeeRepository.save(e);
         return convertToDTO(saved);
@@ -202,6 +223,7 @@ public class EmployeeService {
     public EmployeeDTO approve(Long id) {
         Employee e = employeeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
+        enforceTenant(e);
         e.setStatus("APPROVED");
         Employee saved = employeeRepository.save(e);
         try {
@@ -307,6 +329,25 @@ public class EmployeeService {
     
     private double safe(Double val) {
         return val != null ? val : 0.0;
+    }
+
+    private String currentTenantId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) {
+            return null;
+        }
+        Object details = auth.getDetails();
+        return details != null ? details.toString() : null;
+    }
+
+    private void enforceTenant(Employee e) {
+        String tenantId = currentTenantId();
+        if (tenantId == null) {
+            return;
+        }
+        if (e.getTenantId() != null && !tenantId.equals(e.getTenantId())) {
+            throw new RuntimeException("Access denied for this employee");
+        }
     }
     
     private EmployeeDTO convertToDTO(Employee employee) {

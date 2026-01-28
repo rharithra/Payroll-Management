@@ -36,7 +36,9 @@ function EmployeeMasterForm() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('employeeCategories');
+      const tenantId = (typeof window !== 'undefined' && window.localStorage) ? (localStorage.getItem('tenantId') || '') : '';
+      const key = tenantId ? `employeeCategories_${tenantId}` : 'employeeCategories';
+      const saved = localStorage.getItem(key);
       const fromStorage = saved ? JSON.parse(saved) : [];
       const storageList = Array.isArray(fromStorage)
         ? fromStorage.map(x => String(x).trim()).filter(Boolean)

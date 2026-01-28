@@ -5,6 +5,8 @@ import com.salaryapp.repository.EmployeeMasterRepository;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 import java.util.Optional;
@@ -21,12 +23,14 @@ public class EmployeeMasterController {
 
     @GetMapping
     public ResponseEntity<List<EmployeeMaster>> list() {
-        return ResponseEntity.ok(repo.findAll());
+        String tenantId = currentTenantId();
+        return ResponseEntity.ok(repo.findAllByTenantId(tenantId));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<EmployeeMaster> get(@PathVariable Long id) {
-        Optional<EmployeeMaster> found = repo.findById(id);
+        String tenantId = currentTenantId();
+        Optional<EmployeeMaster> found = repo.findByIdAndTenantId(id, tenantId);
         return found.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -43,13 +47,15 @@ public class EmployeeMasterController {
         if (master.getBasicSalary() == null) {
             master.setBasicSalary(0.0);
         }
+        master.setTenantId(currentTenantId());
         EmployeeMaster saved = repo.save(master);
         return ResponseEntity.ok(saved);
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<EmployeeMaster> update(@PathVariable Long id, @RequestBody EmployeeMaster master) {
-        Optional<EmployeeMaster> existing = repo.findById(id);
+        String tenantId = currentTenantId();
+        Optional<EmployeeMaster> existing = repo.findByIdAndTenantId(id, tenantId);
         if (existing.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
@@ -61,16 +67,28 @@ public class EmployeeMasterController {
         if (master.getBasicSalary() == null) {
             master.setBasicSalary(0.0);
         }
+        master.setTenantId(tenantId);
         EmployeeMaster saved = repo.save(master);
         return ResponseEntity.ok(saved);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        if (!repo.existsById(id)) {
+        String tenantId = currentTenantId();
+        Optional<EmployeeMaster> existing = repo.findByIdAndTenantId(id, tenantId);
+        if (existing.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
         repo.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private String currentTenantId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) {
+            return null;
+        }
+        Object details = auth.getDetails();
+        return details != null ? details.toString() : null;
     }
 }

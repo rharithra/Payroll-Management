@@ -31,11 +31,12 @@ public class JwtTokenProvider {
         this.validityMs = validityMs;
     }
 
-    public String createToken(String username, String role) {
+    public String createToken(String username, String role, String tenantId) {
         long now = System.currentTimeMillis();
         return Jwts.builder()
                 .setSubject(username)
                 .claim("role", role)
+                .claim("tenantId", tenantId)
                 .setIssuedAt(new Date(now))
                 .setExpiration(new Date(now + validityMs))
                 .signWith(key, SignatureAlgorithm.HS256)

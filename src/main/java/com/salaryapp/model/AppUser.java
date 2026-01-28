@@ -18,6 +18,9 @@ public class AppUser {
     @Column(nullable = false)
     private String role;
 
+    @Column(length = 64)
+    private String tenantId;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getUsername() { return username; }
@@ -26,4 +29,6 @@ public class AppUser {
     public void setPassword(String password) { this.password = password; }
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+    public String getTenantId() { return tenantId; }
+    public void setTenantId(String tenantId) { this.tenantId = tenantId; }
 }

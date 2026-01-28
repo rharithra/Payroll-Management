@@ -25,4 +25,16 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     Page<com.salaryapp.model.Employee> findAllBySalaryDateBetween(LocalDate start, LocalDate end, Pageable pageable);
     
     java.util.List<com.salaryapp.model.Employee> findBySalaryMonthIsNull();
+
+    java.util.List<com.salaryapp.model.Employee> findAllByTenantId(String tenantId);
+    Page<com.salaryapp.model.Employee> findAllByTenantId(String tenantId, Pageable pageable);
+
+    java.util.List<com.salaryapp.model.Employee> findAllBySalaryDateBetweenAndTenantId(LocalDate start, LocalDate end, String tenantId);
+    Page<com.salaryapp.model.Employee> findAllBySalaryDateBetweenAndTenantId(LocalDate start, LocalDate end, String tenantId, Pageable pageable);
+
+    boolean existsByEmployeeIdAndSalaryDateBetweenAndTenantId(String employeeId, LocalDate start, LocalDate end, String tenantId);
+    com.salaryapp.model.Employee findFirstByEmployeeIdAndSalaryDateBetweenAndTenantId(String employeeId, LocalDate start, LocalDate end, String tenantId);
+
+    boolean existsByEmployeeIdAndSalaryMonthAndTenantId(String employeeId, String salaryMonth, String tenantId);
+    com.salaryapp.model.Employee findFirstByEmployeeIdAndSalaryMonthAndTenantId(String employeeId, String salaryMonth, String tenantId);
 }
