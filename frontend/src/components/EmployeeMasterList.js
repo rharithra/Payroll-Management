@@ -76,30 +76,60 @@ function EmployeeMasterList() {
   );
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('customBoxes');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const normalized = Array.isArray(parsed)
-          ? parsed.map(x => ({
-              id: x.id,
-              label: x.label,
-              category: x.category || 'Earnings',
-              employeeCategory: x.employeeCategory || ''
-            }))
-          : [];
-        setCustomBoxes(normalized);
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await axios.get('/api/custom-components');
+        const data = Array.isArray(res.data) ? res.data : [];
+        if (!cancelled) {
+          const normalized = data.map(x => ({
+            id: x.id,
+            label: x.label,
+            category: x.category || 'Earnings',
+            employeeCategory: x.employeeCategory || ''
+          }));
+          setCustomBoxes(normalized);
+        }
+      } catch {
+        try {
+          const tenantId = (typeof window !== 'undefined' && window.localStorage)
+            ? (localStorage.getItem('tenantId') || '')
+            : '';
+          const key = tenantId ? `customBoxes_${tenantId}` : 'customBoxes';
+          const saved = localStorage.getItem(key);
+          if (saved && !cancelled) {
+            const parsed = JSON.parse(saved);
+            const normalized = Array.isArray(parsed)
+              ? parsed.map(x => ({
+                  id: x.id,
+                  label: x.label,
+                  category: x.category || 'Earnings',
+                  employeeCategory: x.employeeCategory || ''
+                }))
+              : [];
+            setCustomBoxes(normalized);
+          }
+        } catch {}
+      } finally {
+        if (!cancelled) {
+          setIsLoaded(true);
+        }
       }
-      setIsLoaded(true);
-    } catch {
-      setIsLoaded(true);
-    }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
     if (!isLoaded) return;
     try {
-      localStorage.setItem('customBoxes', JSON.stringify(customBoxes));
+      const tenantId = (typeof window !== 'undefined' && window.localStorage)
+        ? (localStorage.getItem('tenantId') || '')
+        : '';
+      const key = tenantId ? `customBoxes_${tenantId}` : 'customBoxes';
+      localStorage.setItem(key, JSON.stringify(customBoxes));
     } catch {}
   }, [customBoxes, isLoaded]);
 
@@ -238,7 +268,7 @@ function EmployeeMasterList() {
               <button
                 type="button"
                 className="btn btn-primary btn-rounded"
-                onClick={() => {
+                onClick={async () => {
                   const label = newLabel.trim();
                   if (!label) return;
                   const exists = customBoxes.some(
@@ -251,21 +281,32 @@ function EmployeeMasterList() {
                     alert('This custom component already exists for the selected tab and category');
                     return;
                   }
-                  const next = [
-                    ...customBoxes,
-                    {
-                      id: Date.now(),
+                  try {
+                    const res = await axios.post('/api/custom-components', {
                       label,
                       category: newCategory,
                       employeeCategory: newEmployeeCategory
+                    });
+                    const saved = res.data;
+                    const next = [
+                      ...customBoxes,
+                      {
+                        id: saved.id,
+                        label: saved.label,
+                        category: saved.category || newCategory,
+                        employeeCategory: saved.employeeCategory || newEmployeeCategory
+                      }
+                    ];
+                    setCustomBoxes(next);
+                    setNewLabel('');
+                    alert('Field added successfully');
+                  } catch (err) {
+                    if (err && err.response && err.response.status === 409) {
+                      alert('This custom component already exists for the selected tab and category');
+                    } else {
+                      alert('Failed to add custom component');
                     }
-                  ];
-                  setCustomBoxes(next);
-                  try {
-                    localStorage.setItem('customBoxes', JSON.stringify(next));
-                  } catch {}
-                  setNewLabel('');
-                  alert('Field added successfully');
+                  }
                 }}
               >
                 Add
@@ -274,7 +315,7 @@ function EmployeeMasterList() {
                 type="button"
                 className="btn btn-outline-danger btn-rounded"
                 style={{ marginLeft: 4, marginRight: 16 }}
-                onClick={() => {
+                onClick={async () => {
                   const label = newLabel.trim();
                   if (!label) return;
                   const match = customBoxes.find(
@@ -317,12 +358,14 @@ function EmployeeMasterList() {
                     }
                   }
                   if (!window.confirm('Delete this custom component?')) return;
-                  const next = customBoxes.filter((x) => x.id !== match.id);
-                  setCustomBoxes(next);
                   try {
-                    localStorage.setItem('customBoxes', JSON.stringify(next));
-                  } catch {}
-                  setNewLabel('');
+                    await axios.delete(`/api/custom-components/${match.id}`);
+                    const next = customBoxes.filter((x) => x.id !== match.id);
+                    setCustomBoxes(next);
+                    setNewLabel('');
+                  } catch {
+                    alert('Failed to delete custom component');
+                  }
                 }}
               >
                 Delete

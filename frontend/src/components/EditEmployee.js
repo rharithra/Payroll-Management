@@ -58,14 +58,40 @@ function EditEmployee() {
 
 
     useEffect(() => {
-        try {
-            const saved = localStorage.getItem('customBoxes');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                const normalized = Array.isArray(parsed) ? parsed.map(x => ({ id: x.id, label: x.label, category: x.category || 'Earnings' })) : [];
-                setCustomBoxes(normalized);
+        let cancelled = false;
+        const load = async () => {
+            try {
+                const res = await axios.get('/api/custom-components');
+                const data = Array.isArray(res.data) ? res.data : [];
+                if (!cancelled) {
+                    const normalized = data.map(x => ({
+                        id: x.id,
+                        label: x.label,
+                        category: x.category || 'Earnings'
+                    }));
+                    setCustomBoxes(normalized);
+                }
+            } catch {
+                try {
+                    const tenantId = (typeof window !== 'undefined' && window.localStorage)
+                        ? (localStorage.getItem('tenantId') || '')
+                        : '';
+                    const key = tenantId ? `customBoxes_${tenantId}` : 'customBoxes';
+                    const saved = localStorage.getItem(key);
+                    if (saved && !cancelled) {
+                        const parsed = JSON.parse(saved);
+                        const normalized = Array.isArray(parsed)
+                            ? parsed.map(x => ({ id: x.id, label: x.label, category: x.category || 'Earnings' }))
+                            : [];
+                        setCustomBoxes(normalized);
+                    }
+                } catch {}
             }
-        } catch {}
+        };
+        load();
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     const computeDerived = useCallback((s, currentBoxes = customBoxValues, boxDefs = customBoxes) => {
@@ -131,17 +157,8 @@ function EditEmployee() {
                 const res = await axios.get(`/api/employees/${id}`);
                 const data = res.data;
                 
-                // Parse custom fields
                 let loadedValues = {};
-                let loadedBoxes = [];
-                // Start with localStorage boxes
-                try {
-                    const saved = localStorage.getItem('customBoxes');
-                    if (saved) {
-                        const parsed = JSON.parse(saved);
-                        loadedBoxes = Array.isArray(parsed) ? parsed.map(x => ({ id: x.id, label: x.label, category: x.category || 'Earnings' })) : [];
-                    }
-                } catch {}
+                let loadedBoxes = Array.isArray(customBoxes) ? customBoxes : [];
 
                 if (data.customFields) {
                     try {
@@ -150,7 +167,6 @@ function EditEmployee() {
                             parsed.forEach(p => {
                                 loadedValues[p.label] = p.value;
                             });
-                            // Merge missing boxes
                             const existingLabels = new Set(loadedBoxes.map(x => x.label));
                             const newBoxes = parsed.filter(p => !existingLabels.has(p.label)).map(p => ({
                                 id: Date.now() + Math.random(),
@@ -170,7 +186,7 @@ function EditEmployee() {
             }
         };
         load();
-    }, [id, computeDerived]);
+    }, [id, computeDerived, customBoxes]);
 
     const handleChange = (e) => {
         const { name, value, type } = e.target;

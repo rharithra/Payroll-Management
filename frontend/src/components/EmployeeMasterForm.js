@@ -46,8 +46,15 @@ function EmployeeMasterForm() {
       const fromMasters = (masters || [])
         .map(m => (m.category || '').trim())
         .filter(Boolean);
-      const combined = Array.from(new Set([...storageList, ...fromMasters]));
-      setCategoryOptions(combined);
+      const all = [...storageList, ...fromMasters];
+      const seen = new Map();
+      all.forEach((name) => {
+        const lower = name.toLowerCase();
+        if (!seen.has(lower)) {
+          seen.set(lower, name);
+        }
+      });
+      setCategoryOptions(Array.from(seen.values()));
     } catch {
       const fromMasters = (masters || [])
         .map(m => (m.category || '').trim())

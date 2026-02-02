@@ -144,21 +144,46 @@ export default function AddEmployee() {
     }, [importedAllowances]);
 
     useEffect(() => {
-        try {
-            const saved = localStorage.getItem('customBoxes');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                const normalized = Array.isArray(parsed)
-                    ? parsed.map(x => ({
+        let cancelled = false;
+        const load = async () => {
+            try {
+                const res = await axios.get('/api/custom-components');
+                const data = Array.isArray(res.data) ? res.data : [];
+                if (!cancelled) {
+                    const normalized = data.map(x => ({
                         id: x.id,
                         label: x.label,
                         category: x.category || 'Earnings',
                         employeeCategory: x.employeeCategory || ''
-                    }))
-                    : [];
-                setCustomBoxes(normalized);
+                    }));
+                    setCustomBoxes(normalized);
+                }
+            } catch {
+                try {
+                    const tenantId = (typeof window !== 'undefined' && window.localStorage)
+                        ? (localStorage.getItem('tenantId') || '')
+                        : '';
+                    const key = tenantId ? `customBoxes_${tenantId}` : 'customBoxes';
+                    const saved = localStorage.getItem(key);
+                    if (saved && !cancelled) {
+                        const parsed = JSON.parse(saved);
+                        const normalized = Array.isArray(parsed)
+                            ? parsed.map(x => ({
+                                id: x.id,
+                                label: x.label,
+                                category: x.category || 'Earnings',
+                                employeeCategory: x.employeeCategory || ''
+                            }))
+                            : [];
+                        setCustomBoxes(normalized);
+                    }
+                } catch {}
             }
-        } catch {}
+        };
+        load();
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     useEffect(() => {
