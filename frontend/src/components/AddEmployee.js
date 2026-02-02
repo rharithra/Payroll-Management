@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
@@ -316,6 +316,7 @@ export default function AddEmployee() {
     const [masters, setMasters] = useState([]);
     const [category, setCategory] = useState('');
     const [categoryOptions, setCategoryOptions] = useState([]);
+    const visibleCategoryOptions = categoryOptions;
 
     useEffect(() => {
         axios.get('/api/employee-masters')
@@ -344,6 +345,13 @@ export default function AddEmployee() {
             setCategoryOptions(Array.from(new Set(fromMasters)));
         }
     }, [masters]);
+
+    const currentEmployee = useMemo(() => {
+        const key = (employee.employeeId || '').toString().trim().toLowerCase();
+        return masters.find(x =>
+            (x.employeeId != null ? x.employeeId : '').toString().trim().toLowerCase() === key
+        ) || null;
+    }, [employee.employeeId, masters]);
 
     const handleMasterSelect = (e) => {
         const selectedEmpId = e.target.value || null;
@@ -380,36 +388,11 @@ export default function AddEmployee() {
         }
     };
 
-    const handleCategoryChange = async (e) => {
+    const handleCategoryChange = (e) => {
         const value = e.target.value;
         setCategory(value);
         setCustomBoxValues({});
         setEmployee(prev => computeDerived(prev, {}));
-        const empId = (employee.employeeId || '').toString().trim().toLowerCase();
-        if (!empId) {
-            return;
-        }
-        const master = masters.find(x =>
-            (x.employeeId != null ? x.employeeId : '').toString().trim().toLowerCase() === empId
-        );
-        if (!master || !master.id) {
-            return;
-        }
-        const payload = {
-            name: master.name,
-            designation: master.designation,
-            category: value || null,
-            employeeId: master.employeeId,
-            basicSalary: master.basicSalary,
-            joinDate: master.joinDate,
-            permissionLimit: master.permissionLimit,
-            permittedLeave: master.permittedLeave
-        };
-        try {
-            await axios.put(`/api/employee-masters/${master.id}`, payload, { headers: { 'Content-Type': 'application/json' } });
-            setMasters(prev => prev.map(x => x.id === master.id ? { ...x, category: value } : x));
-        } catch (err) {
-        }
     };
 
     const handleDownloadAttendanceTemplate = () => {
@@ -1122,19 +1105,20 @@ export default function AddEmployee() {
                                 </select>
                             </div>
                             <div>
-                                <select
-                                    aria-label="Select Category"
-                                    value={category}
-                                    onChange={handleCategoryChange}
-                                    disabled={!employee.employeeId}
+                                <div
+                                    aria-label="Employee Category"
+                                    style={{
+                                        minHeight: 38,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        padding: '6px 8px',
+                                        border: '1px solid #ced4da',
+                                        borderRadius: 4,
+                                        backgroundColor: '#f9fafb'
+                                    }}
                                 >
-                                    <option value="">Select category</option>
-                                    {categoryOptions.map(cat => (
-                                        <option key={cat} value={cat}>
-                                            {cat}
-                                        </option>
-                                    ))}
-                                </select>
+                                    {category || (currentEmployee && currentEmployee.category) || 'No category set'}
+                                </div>
                             </div>
                         </div>
                         <div style={{ flexShrink: 0 }}>

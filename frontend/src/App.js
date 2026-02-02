@@ -37,7 +37,8 @@ function App() {
   }, []);
 
   const RequireAuth = ({ children }) => {
-    return authed ? children : <Navigate to="/login" replace />;
+    const token = localStorage.getItem('token');
+    return token ? children : <Navigate to="/login" replace />;
   };
   return (
     <BrowserRouter>
