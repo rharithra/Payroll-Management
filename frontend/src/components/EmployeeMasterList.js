@@ -14,7 +14,7 @@ function EmployeeMasterList() {
   const [newCategory, setNewCategory] = useState('Earnings');
   const [newEmployeeCategory, setNewEmployeeCategory] = useState('');
   const [storedCategories, setStoredCategories] = useState([]);
-  const [newCategoryName, setNewCategoryName] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
 
   const builtinCatalog = [
     { key: 'basicSalary', label: 'Basic salary', category: 'Employee' },
@@ -471,72 +471,118 @@ function EmployeeMasterList() {
               background: '#fff',
               borderRadius: 8,
               padding: 16,
-              width: '90%',
-              maxWidth: 400
+              width: '95%',
+              maxWidth: 560
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 12
+              }}
+            >
               <div style={{ fontWeight: 700, fontSize: 18 }}>Categories</div>
-              <button type="button" className="btn btn-secondary btn-rounded" onClick={() => setShowCategoryModal(false)}>Close</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm btn-rounded"
+                  onClick={() => {
+                    const name = window.prompt('Category name');
+                    if (!name) return;
+                    const trimmed = name.trim();
+                    if (!trimmed) return;
+                    const lower = trimmed.toLowerCase();
+                    const exists = storedCategories.some((c) => c.toLowerCase() === lower);
+                    if (exists) {
+                      alert('Category already exists');
+                      return;
+                    }
+                    const updated = [...storedCategories, trimmed];
+                    setStoredCategories(updated);
+                    try {
+                      const tenantId = (typeof window !== 'undefined' && window.localStorage)
+                        ? (localStorage.getItem('tenantId') || '')
+                        : '';
+                      const key = tenantId ? `employeeCategories_${tenantId}` : 'employeeCategories';
+                      localStorage.setItem(key, JSON.stringify(updated));
+                    } catch {}
+                    setSelectedCategory(trimmed);
+                  }}
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-danger btn-sm btn-rounded"
+                  disabled={!selectedCategory}
+                  onClick={() => {
+                    if (!selectedCategory) return;
+                    if (!window.confirm(`Delete category "${selectedCategory}"?`)) return;
+                    const updated = storedCategories.filter(
+                      (c) => c.toLowerCase() !== selectedCategory.toLowerCase()
+                    );
+                    setStoredCategories(updated);
+                    setSelectedCategory('');
+                    try {
+                      const tenantId =
+                        (typeof window !== 'undefined' && window.localStorage)
+                          ? (localStorage.getItem('tenantId') || '')
+                          : '';
+                      const key = tenantId
+                        ? `employeeCategories_${tenantId}`
+                        : 'employeeCategories';
+                      localStorage.setItem(key, JSON.stringify(updated));
+                    } catch {}
+                  }}
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-rounded"
+                  onClick={() => setShowCategoryModal(false)}
+                >
+                  Close
+                </button>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input
-                type="text"
-                placeholder="Category name"
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                style={{ flex: 1 }}
-              />
-              <button
-                type="button"
-                className="btn btn-primary btn-rounded"
-                onClick={() => {
-                  const name = newCategoryName.trim();
-                  if (!name) return;
-                  const lower = name.toLowerCase();
-                  const exists = storedCategories.some(c => c.toLowerCase() === lower);
-                  if (exists) {
-                    alert('Category already exists');
-                    return;
-                  }
-                  const updated = [...storedCategories, name];
-                  setStoredCategories(updated);
-                  try {
-                    const tenantId = (typeof window !== 'undefined' && window.localStorage) ? (localStorage.getItem('tenantId') || '') : '';
-                    const key = tenantId ? `employeeCategories_${tenantId}` : 'employeeCategories';
-                    localStorage.setItem(key, JSON.stringify(updated));
-                  } catch {}
-                  setNewCategoryName('');
-                }}
-              >
-                Add
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline-danger btn-rounded"
-                onClick={() => {
-                  const name = newCategoryName.trim();
-                  if (!name) return;
-                  const lower = name.toLowerCase();
-                  const exists = storedCategories.some((c) => c.toLowerCase() === lower);
-                  if (!exists) {
-                    alert('Category not found');
-                    return;
-                  }
-                  if (!window.confirm('Delete this category?')) return;
-                  const updated = storedCategories.filter((c) => c.toLowerCase() !== lower);
-                  setStoredCategories(updated);
-                  try {
-                    const tenantId = (typeof window !== 'undefined' && window.localStorage) ? (localStorage.getItem('tenantId') || '') : '';
-                    const key = tenantId ? `employeeCategories_${tenantId}` : 'employeeCategories';
-                    localStorage.setItem(key, JSON.stringify(updated));
-                  } catch {}
-                  setNewCategoryName('');
-                }}
-                style={{ marginLeft: 4 }}
-              >
-                Delete
-              </button>
+            <div
+              style={{
+                maxHeight: 260,
+                overflowY: 'auto',
+                borderTop: '1px solid #eee',
+                paddingTop: 8,
+                marginTop: 8
+              }}
+            >
+              {storedCategories.length === 0 ? (
+                <div style={{ fontSize: 13, opacity: 0.7 }}>No categories yet</div>
+              ) : (
+                storedCategories.map((category) => {
+                  const isSelected =
+                    selectedCategory &&
+                    selectedCategory.toLowerCase() === category.toLowerCase();
+                  return (
+                  <div
+                    key={category}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '4px 0',
+                      borderBottom: '1px dashed #f0f0f0',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      backgroundColor: isSelected ? '#eef2ff' : 'transparent'
+                    }}
+                    onClick={() => setSelectedCategory(category)}
+                  >
+                    <div>{category}</div>
+                  </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
