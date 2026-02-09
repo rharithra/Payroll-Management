@@ -133,6 +133,35 @@ function EmployeeMasterList() {
     } catch {}
   }, [customBoxes, isLoaded]);
 
+  const moveCustomBox = async (fromIndex, toIndex) => {
+    if (fromIndex === toIndex) return;
+    if (toIndex < 0 || toIndex >= customBoxes.length) return;
+    const current = [...customBoxes];
+    const item = current[fromIndex];
+    current.splice(fromIndex, 1);
+    current.splice(toIndex, 0, item);
+    setCustomBoxes(current);
+    try {
+      const ids = current.map(x => x.id).filter(Boolean);
+      if (ids.length > 0) {
+        await axios.put('/api/custom-components/reorder', ids);
+      }
+    } catch {
+      try {
+        const res = await axios.get('/api/custom-components');
+        const data = Array.isArray(res.data) ? res.data : [];
+        const normalized = data.map(x => ({
+          id: x.id,
+          label: x.label,
+          category: x.category || 'Earnings',
+          employeeCategory: x.employeeCategory || ''
+        }));
+        setCustomBoxes(normalized);
+      } catch {}
+      alert('Failed to update order');
+    }
+  };
+
   return (
     <>
       <div className="actions-bar">
@@ -371,7 +400,57 @@ function EmployeeMasterList() {
                 Delete
               </button>
             </div>
-            <div />
+            {customBoxes.length > 0 && (
+              <div
+                style={{
+                  maxHeight: 260,
+                  overflowY: 'auto',
+                  borderTop: '1px solid #eee',
+                  paddingTop: 8,
+                  marginTop: 8
+                }}
+              >
+                {customBoxes.map((box, index) => (
+                  <div
+                    key={box.id || `${box.label}-${index}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '4px 0',
+                      borderBottom: '1px dashed #f0f0f0',
+                      fontSize: 13
+                    }}
+                  >
+                    <div>
+                      <div>{box.label}</div>
+                      <div style={{ opacity: 0.7 }}>
+                        {box.category} {box.employeeCategory ? `· ${box.employeeCategory}` : ''}
+                      </div>
+                    </div>
+                    <div>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary"
+                        style={{ marginRight: 4 }}
+                        disabled={index === 0}
+                        onClick={() => moveCustomBox(index, index - 1)}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary"
+                        disabled={index === customBoxes.length - 1}
+                        onClick={() => moveCustomBox(index, index + 1)}
+                      >
+                        ↓
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -10,4 +10,5 @@ public interface EmployeeMasterRepository extends JpaRepository<EmployeeMaster, 
     java.util.Optional<EmployeeMaster> findByNameAndTenantId(String name, String tenantId);
     java.util.List<EmployeeMaster> findAllByTenantId(String tenantId);
     java.util.Optional<EmployeeMaster> findByIdAndTenantId(Long id, String tenantId);
+    java.util.Optional<EmployeeMaster> findByEmployeeIdAndTenantId(String employeeId, String tenantId);
 }

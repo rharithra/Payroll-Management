@@ -10,6 +10,8 @@ import org.springframework.stereotype.Repository;
 public interface CustomComponentRepository extends JpaRepository<CustomComponent, Long> {
     List<CustomComponent> findAllByTenantId(String tenantId);
 
+    List<CustomComponent> findAllByTenantIdOrderByDisplayOrderAscIdAsc(String tenantId);
+
     Optional<CustomComponent> findByIdAndTenantId(Long id, String tenantId);
 
     boolean existsByTenantIdAndLabelAndCategoryAndEmployeeCategory(
@@ -19,4 +21,3 @@ public interface CustomComponentRepository extends JpaRepository<CustomComponent
         String employeeCategory
     );
 }
-

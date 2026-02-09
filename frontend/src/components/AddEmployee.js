@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
@@ -36,6 +36,21 @@ const allowanceFieldKeys = [
     'perCall',
     'arrears',
     'bonus'
+];
+
+const employeeFieldKeys = [
+    'basicSalary',
+    'specialAllowance',
+    'hra',
+    'dearnessAllowance'
+];
+
+const deductionFieldKeys = [
+    'advance',
+    'loanDeduction',
+    'professionalTax',
+    'underPerformance',
+    'salesDebits'
 ];
 
 const ATTENDANCE_EXCEL_KEY = 'attendanceExcelImported';
@@ -142,6 +157,102 @@ export default function AddEmployee() {
             localStorage.setItem(ALLOWANCES_EXCEL_KEY, JSON.stringify(importedAllowances));
         } catch {}
     }, [importedAllowances]);
+
+    const [employeeOrder, setEmployeeOrder] = useState(() => {
+        try {
+            const raw = localStorage.getItem('salaryEmployeeOrder');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    const cleaned = employeeFieldKeys.filter((k) => parsed.includes(k));
+                    const remaining = employeeFieldKeys.filter((k) => !parsed.includes(k));
+                    return [...cleaned, ...remaining];
+                }
+            }
+        } catch {}
+        return employeeFieldKeys;
+    });
+
+    const [allowanceOrder, setAllowanceOrder] = useState(() => {
+        try {
+            const raw = localStorage.getItem('salaryAllowanceOrder');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    const cleaned = allowanceFieldKeys.filter((k) => parsed.includes(k));
+                    const remaining = allowanceFieldKeys.filter((k) => !parsed.includes(k));
+                    return [...cleaned, ...remaining];
+                }
+            }
+        } catch {}
+        return allowanceFieldKeys;
+    });
+
+    const [deductionOrder, setDeductionOrder] = useState(() => {
+        try {
+            const raw = localStorage.getItem('salaryDeductionOrder');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    const cleaned = deductionFieldKeys.filter((k) => parsed.includes(k));
+                    const remaining = deductionFieldKeys.filter((k) => !parsed.includes(k));
+                    return [...cleaned, ...remaining];
+                }
+            }
+        } catch {}
+        return deductionFieldKeys;
+    });
+
+    const [customMenu, setCustomMenu] = useState({
+        open: false,
+        x: 0,
+        y: 0,
+        tabCategory: null,
+        target: null
+    });
+    const longPressRef = useRef(null);
+
+    const openCustomMenuAt = (x, y, tabCategory, target) => {
+        setCustomMenu({
+            open: true,
+            x,
+            y,
+            tabCategory,
+            target
+        });
+    };
+
+    const openCustomMenu = (event, tabCategory, target) => {
+        event.preventDefault();
+        const x = event.clientX;
+        const y = event.clientY;
+        openCustomMenuAt(x, y, tabCategory, target);
+    };
+
+    const startLongPress = (event, tabCategory, target) => {
+        if (event.type === 'mousedown' && event.button !== 0) {
+            return;
+        }
+        const point =
+            event.touches && event.touches.length > 0
+                ? event.touches[0]
+                : event;
+        const x = point.clientX;
+        const y = point.clientY;
+        if (longPressRef.current) {
+            clearTimeout(longPressRef.current);
+        }
+        longPressRef.current = setTimeout(() => {
+            openCustomMenuAt(x, y, tabCategory, target);
+        }, 600);
+    };
+
+    const cancelLongPress = () => {
+        if (longPressRef.current) {
+            clearTimeout(longPressRef.current);
+            longPressRef.current = null;
+        }
+    };
 
     useEffect(() => {
         let cancelled = false;
@@ -290,6 +401,97 @@ export default function AddEmployee() {
         setEmployee(prev => computeDerived(prev, nextValues));
     };
 
+    const moveCustomBoxInTab = async (tabCategory, employeeCategoryFilter, boxId, direction) => {
+        if (!direction) return;
+        const empCategory = employeeCategoryFilter || '';
+        const current = [...customBoxes];
+        const matches = current
+            .map((cb, index) => ({ cb, index }))
+            .filter(({ cb }) =>
+                cb.category === tabCategory &&
+                (!cb.employeeCategory || cb.employeeCategory === empCategory)
+            );
+        const currentIndexInTab = matches.findIndex(x => x.cb.id === boxId);
+        if (currentIndexInTab === -1) return;
+        const targetIndexInTab = currentIndexInTab + direction;
+        if (targetIndexInTab < 0 || targetIndexInTab >= matches.length) return;
+        const fromIndex = matches[currentIndexInTab].index;
+        const toIndex = matches[targetIndexInTab].index;
+        const [item] = current.splice(fromIndex, 1);
+        current.splice(toIndex, 0, item);
+        setCustomBoxes(current);
+        setCustomMenu(prev => ({ ...prev, open: false }));
+        try {
+            const ids = current.map(x => x.id).filter(Boolean);
+            if (ids.length > 0) {
+                await axios.put('/api/custom-components/reorder', ids);
+            }
+        } catch {
+            try {
+                const res = await axios.get('/api/custom-components');
+                const data = Array.isArray(res.data) ? res.data : [];
+                const normalized = data.map(x => ({
+                    id: x.id,
+                    label: x.label,
+                    category: x.category || 'Earnings',
+                    employeeCategory: x.employeeCategory || ''
+                }));
+                setCustomBoxes(normalized);
+            } catch {}
+        }
+    };
+
+    const moveBuiltinField = (tabCategory, fieldKey, direction) => {
+        if (!direction) return;
+        if (tabCategory === 'Employee') {
+            setEmployeeOrder(prev => {
+                const current = employeeFieldKeys.filter(k => prev.includes(k));
+                const idx = current.indexOf(fieldKey);
+                if (idx === -1) return prev;
+                const target = idx + direction;
+                if (target < 0 || target >= current.length) return prev;
+                const next = [...current];
+                const [item] = next.splice(idx, 1);
+                next.splice(target, 0, item);
+                try {
+                    localStorage.setItem('salaryEmployeeOrder', JSON.stringify(next));
+                } catch {}
+                return next;
+            });
+        } else if (tabCategory === 'Earnings') {
+            setAllowanceOrder(prev => {
+                const current = allowanceFieldKeys.filter(k => prev.includes(k));
+                const idx = current.indexOf(fieldKey);
+                if (idx === -1) return prev;
+                const target = idx + direction;
+                if (target < 0 || target >= current.length) return prev;
+                const next = [...current];
+                const [item] = next.splice(idx, 1);
+                next.splice(target, 0, item);
+                try {
+                    localStorage.setItem('salaryAllowanceOrder', JSON.stringify(next));
+                } catch {}
+                return next;
+            });
+        } else if (tabCategory === 'Deductions') {
+            setDeductionOrder(prev => {
+                const current = deductionFieldKeys.filter(k => prev.includes(k));
+                const idx = current.indexOf(fieldKey);
+                if (idx === -1) return prev;
+                const target = idx + direction;
+                if (target < 0 || target >= current.length) return prev;
+                const next = [...current];
+                const [item] = next.splice(idx, 1);
+                next.splice(target, 0, item);
+                try {
+                    localStorage.setItem('salaryDeductionOrder', JSON.stringify(next));
+                } catch {}
+                return next;
+            });
+        }
+        setCustomMenu(prev => ({ ...prev, open: false }));
+    };
+
     const updateFieldLabel = useCallback((fieldKey, value) => {
         setFieldLabels(prev => {
             const next = { ...prev, [fieldKey]: value || defaultFieldLabels[fieldKey] || '' };
@@ -353,6 +555,17 @@ export default function AddEmployee() {
         ) || null;
     }, [employee.employeeId, masters]);
 
+    const filteredMastersByCategory = useMemo(() => {
+        const cat = (category || '').trim().toLowerCase();
+        if (!cat) {
+            return [];
+        }
+        return (masters || []).filter(m => {
+            const mCat = (m.category || '').trim().toLowerCase();
+            return mCat === cat;
+        });
+    }, [masters, category]);
+
     const handleMasterSelect = (e) => {
         const selectedEmpId = e.target.value || null;
         const key = (selectedEmpId || '').toString().trim().toLowerCase();
@@ -392,7 +605,19 @@ export default function AddEmployee() {
         const value = e.target.value;
         setCategory(value);
         setCustomBoxValues({});
-        setEmployee(prev => computeDerived(prev, {}));
+        setEmployee(prev => computeDerived({
+            ...prev,
+            employeeId: null,
+            name: '',
+        }));
+        setJoinDate('');
+        setAttendance(prev => ({
+            ...prev,
+            totalLeave: 0,
+            totalPermission: 0,
+            permittedLeave: 0,
+            absentDays: 0,
+        }));
     };
 
     const handleDownloadAttendanceTemplate = () => {
@@ -457,7 +682,7 @@ export default function AddEmployee() {
     };
 
     const getAllowanceColumnConfig = () => {
-        const builtin = allowanceFieldKeys
+        const builtin = allowanceOrder
             .filter((key) => !hiddenFields[key])
             .map((key) => ({
                 type: 'builtin',
@@ -869,7 +1094,6 @@ export default function AddEmployee() {
         setShowSalary(true);
     };
 
-    // Attendance state
     const [joinDate, setJoinDate] = useState('');
     const [attendance, setAttendance] = useState({
         totalLeave: 0,
@@ -879,6 +1103,7 @@ export default function AddEmployee() {
         perMonthPermittedLeave: null,
         perMonthPermissionLimit: null,
     });
+    const [attendanceAutoLoadedKey, setAttendanceAutoLoadedKey] = useState(null);
     const [selectedMonth, setSelectedMonth] = useState('');
 
     // NEW: staged UI toggles + category
@@ -929,6 +1154,46 @@ export default function AddEmployee() {
             totalPermission: rec.totalPermission ?? 0
         }));
     }, [employee.employeeId, employee.salaryDate, selectedMonth, importedAttendance]);
+
+    useEffect(() => {
+        const monthYear = selectedMonth || (employee.salaryDate ? employee.salaryDate.slice(0, 7) : null);
+        const empId = employee.employeeId;
+        if (!monthYear || !empId) return;
+        const key = `${monthYear}|${empId}`;
+        if (attendanceAutoLoadedKey === key) return;
+        axios
+            .get('/api/mobile/attendance/summary', {
+                params: {
+                    employeeId: empId,
+                    month: monthYear,
+                },
+            })
+            .then((res) => {
+                const data = res.data || {};
+                setAttendance((prev) => ({
+                    ...prev,
+                    totalLeave:
+                        typeof data.totalLeave === 'number'
+                            ? data.totalLeave
+                            : prev.totalLeave || 0,
+                    totalPermission:
+                        typeof data.permissionsUsed === 'number'
+                            ? data.permissionsUsed
+                            : prev.totalPermission || 0,
+                    perMonthPermissionLimit:
+                        typeof data.permissionLimit === 'number'
+                            ? data.permissionLimit
+                            : prev.perMonthPermissionLimit,
+                }));
+                setAttendanceAutoLoadedKey(key);
+            })
+            .catch(() => {});
+    }, [
+        employee.employeeId,
+        employee.salaryDate,
+        selectedMonth,
+        attendanceAutoLoadedKey,
+    ]);
 
     useEffect(() => {
         const monthYear = selectedMonth || (employee.salaryDate ? employee.salaryDate.slice(0, 7) : null);
@@ -989,6 +1254,42 @@ export default function AddEmployee() {
             }));
         }
     }, [employee.employeeId, employee.salaryDate, selectedMonth, importedAllowances]);
+
+    const hasMenuTarget = customMenu.open && customMenu.tabCategory && customMenu.target;
+    let canMoveUp = false;
+    let canMoveDown = false;
+    if (hasMenuTarget) {
+        if (customMenu.target.type === 'custom') {
+            const empCategory = category || '';
+            const listInTab = customBoxes.filter(cb =>
+                cb.category === customMenu.tabCategory &&
+                (!cb.employeeCategory || cb.employeeCategory === empCategory)
+            );
+            const idx = listInTab.findIndex(cb => cb.id === customMenu.target.id);
+            if (idx > 0) {
+                canMoveUp = true;
+            }
+            if (idx >= 0 && idx < listInTab.length - 1) {
+                canMoveDown = true;
+            }
+        } else if (customMenu.target.type === 'builtin') {
+            let order = [];
+            if (customMenu.tabCategory === 'Employee') {
+                order = employeeOrder;
+            } else if (customMenu.tabCategory === 'Earnings') {
+                order = allowanceOrder;
+            } else if (customMenu.tabCategory === 'Deductions') {
+                order = deductionOrder;
+            }
+            const idx = order.indexOf(customMenu.target.key);
+            if (idx > 0) {
+                canMoveUp = true;
+            }
+            if (idx >= 0 && idx < order.length - 1) {
+                canMoveDown = true;
+            }
+        }
+    }
 
     return (
         <div className="page add-salary">
@@ -1094,31 +1395,28 @@ export default function AddEmployee() {
                             })()}
                             <div>
                                 <select
-                                    aria-label="Select Employee"
-                                    value={employee.employeeId ?? ''}
-                                    onChange={handleMasterSelect}
+                                    aria-label="Select Category"
+                                    value={category || ''}
+                                    onChange={handleCategoryChange}
                                 >
-                                    <option value="">Select employee</option>
-                                    {masters.map(m => (
-                                        <option key={m.id} value={m.employeeId}>{m.name}</option>
+                                    <option value="">Select category</option>
+                                    {visibleCategoryOptions.map((c) => (
+                                        <option key={c} value={c}>{c}</option>
                                     ))}
                                 </select>
                             </div>
                             <div>
-                                <div
-                                    aria-label="Employee Category"
-                                    style={{
-                                        minHeight: 38,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        padding: '6px 8px',
-                                        border: '1px solid #ced4da',
-                                        borderRadius: 4,
-                                        backgroundColor: '#f9fafb'
-                                    }}
+                                <select
+                                    aria-label="Select Employee"
+                                    value={employee.employeeId ?? ''}
+                                    onChange={handleMasterSelect}
+                                    disabled={!category}
                                 >
-                                    {category || (currentEmployee && currentEmployee.category) || 'No category set'}
-                                </div>
+                                    <option value="">Select employee</option>
+                                    {filteredMastersByCategory.map(m => (
+                                        <option key={m.id} value={m.employeeId}>{m.name}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
                         <div style={{ flexShrink: 0 }}>
@@ -1173,158 +1471,120 @@ export default function AddEmployee() {
                                             <label htmlFor="designation">Designation</label>
                                             <input id="designation" name="designation" type="text" value={employee.designation ?? ''} onChange={handleChange}/>
                                         </div>
-                                        {!hiddenFields.basicSalary && (
-                                        <div className="form-item">
-                                            <label htmlFor="basicSalary">
-                                                <EditableLabel fieldKey="basicSalary" defaultText="Basic salary" />
-                                            </label>
-                                            <input id="basicSalary" name="basicSalary" type="number" value={employee.basicSalary ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
-                                        {!hiddenFields.specialAllowance && (
-                                        <div className="form-item">
-                                            <label htmlFor="specialAllowance">
-                                                <EditableLabel fieldKey="specialAllowance" defaultText="Special allowance" />
-                                            </label>
-                                            <input id="specialAllowance" name="specialAllowance" type="number" value={employee.specialAllowance ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
-                                        {!hiddenFields.hra && (
-                                        <div className="form-item">
-                                            <label htmlFor="hra">
-                                                <EditableLabel fieldKey="hra" defaultText="House Rent Allowance" />
-                                            </label>
-                                            <input id="hra" name="hra" type="number" value={employee.hra ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
-                                        {!hiddenFields.dearnessAllowance && (
-                                        <div className="form-item">
-                                            <label htmlFor="dearnessAllowance">
-                                                <EditableLabel fieldKey="dearnessAllowance" defaultText="Dearness Allowance" />
-                                            </label>
-                                            <input id="dearnessAllowance" name="dearnessAllowance" type="number" value={employee.dearnessAllowance ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
+                                        {employeeOrder.map((key) => {
+                                            if (hiddenFields[key]) return null;
+                                            return (
+                                                <div key={key} className="form-item">
+                                                    <label
+                                                        htmlFor={key}
+                                                        onContextMenu={(e) => openCustomMenu(e, 'Employee', { type: 'builtin', key })}
+                                                        onMouseDown={(e) => startLongPress(e, 'Employee', { type: 'builtin', key })}
+                                                        onMouseUp={cancelLongPress}
+                                                        onMouseLeave={cancelLongPress}
+                                                        onTouchStart={(e) => startLongPress(e, 'Employee', { type: 'builtin', key })}
+                                                        onTouchEnd={cancelLongPress}
+                                                    >
+                                                        <EditableLabel fieldKey={key} defaultText={defaultFieldLabels[key] || key} />
+                                                    </label>
+                                                    <input
+                                                        id={key}
+                                                        name={key}
+                                                        type="number"
+                                                        value={employee[key] ?? ''}
+                                                        onChange={handleChange}
+                                                    />
+                                                </div>
+                                            );
+                                        })}
                                         {customBoxes
                                             .filter(cb =>
                                                 cb.category === 'Employee' &&
                                                 (!cb.employeeCategory || cb.employeeCategory === category)
                                             )
                                             .map(cb => (
-                                            <div key={cb.id} className="form-item">
-                                                <label>{cb.label}</label>
-                                                <input
-                                                    type="text"
-                                                    value={(customBoxValues[cb.label] ?? '')}
-                                                    onChange={(e) => handleCustomBoxChange(cb.label, e.target.value)}
-                                                />
-                                            </div>
-                                        ))}
+                                                <div
+                                                    key={cb.id}
+                                                    className="form-item"
+                                                >
+                                                    <label
+                                                        onContextMenu={(e) => openCustomMenu(e, 'Employee', { type: 'custom', id: cb.id })}
+                                                        onMouseDown={(e) => startLongPress(e, 'Employee', { type: 'custom', id: cb.id })}
+                                                        onMouseUp={cancelLongPress}
+                                                        onMouseLeave={cancelLongPress}
+                                                        onTouchStart={(e) => startLongPress(e, 'Employee', { type: 'custom', id: cb.id })}
+                                                        onTouchEnd={cancelLongPress}
+                                                    >
+                                                        {cb.label}
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={(customBoxValues[cb.label] ?? '')}
+                                                        onChange={(e) => handleCustomBoxChange(cb.label, e.target.value)}
+                                                    />
+                                                </div>
+                                            ))}
 
                                     </div>
                                 )}
 
                                 {activeTab === 'Earnings' && (
                                     <div className="form-grid">
-                                        {!hiddenFields.attendanceAllowance && (
-                                        <div className="form-item">
-                                            <label htmlFor="attendanceAllowance">
-                                                <EditableLabel fieldKey="attendanceAllowance" defaultText="Attendance allowance" />
-                                            </label>
-                                            <input id="attendanceAllowance" name="attendanceAllowance" type="number" value={employee.attendanceAllowance ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
-                                        {!hiddenFields.areaAllowance && (
-                                        <div className="form-item">
-                                            <label htmlFor="areaAllowance">
-                                                <EditableLabel fieldKey="areaAllowance" defaultText="Area allowance" />
-                                            </label>
-                                            <input id="areaAllowance" name="areaAllowance" type="number" value={employee.areaAllowance ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
-                                        {!hiddenFields.dresscode && (
-                                        <div className="form-item">
-                                            <label htmlFor="dresscode">
-                                                <EditableLabel fieldKey="dresscode" defaultText="Dresscode" />
-                                            </label>
-                                            <input id="dresscode" name="dresscode" type="number" value={employee.dresscode ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
-                                        {!hiddenFields.os && (
-                                        <div className="form-item">
-                                            <label htmlFor="os">
-                                                <EditableLabel fieldKey="os" defaultText="OS" />
-                                            </label>
-                                            <input id="os" name="os" type="number" value={employee.os ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
-                                        {!hiddenFields.performanceIncentive && (
-                                        <div className="form-item">
-                                            <label htmlFor="performanceIncentive">
-                                                <EditableLabel fieldKey="performanceIncentive" defaultText="Sales incentive" />
-                                            </label>
-                                            <input id="performanceIncentive" name="performanceIncentive" type="number" value={employee.performanceIncentive ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
-                                        {!hiddenFields.review && (
-                                        <div className="form-item">
-                                            <label htmlFor="review">
-                                                <EditableLabel fieldKey="review" defaultText="Review" />
-                                            </label>
-                                            <input id="review" name="review" type="number" value={employee.review ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
-                                        {!hiddenFields.roadshow && (
-                                        <div className="form-item">
-                                            <label htmlFor="roadshow">
-                                                <EditableLabel fieldKey="roadshow" defaultText="Roadshow promo" />
-                                            </label>
-                                            <input id="roadshow" name="roadshow" type="number" value={employee.roadshow ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
-                                        {!hiddenFields.perCall && (
-                                        <div className="form-item">
-                                            <label htmlFor="perCall">
-                                                <EditableLabel fieldKey="perCall" defaultText="Per-call inc" />
-                                            </label>
-                                            <input id="perCall" name="perCall" type="number" value={employee.perCall ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
-                                        {!hiddenFields.arrears && (
-                                        <div className="form-item">
-                                            <label htmlFor="arrears">
-                                                <EditableLabel fieldKey="arrears" defaultText="Arrears" />
-                                            </label>
-                                            <input id="arrears" name="arrears" type="number" value={employee.arrears ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
-                                        {!hiddenFields.bonus && (
-                                        <div className="form-item">
-                                            <label htmlFor="bonus">
-                                                <EditableLabel fieldKey="bonus" defaultText="Bonus" />
-                                            </label>
-                                            <input id="bonus" name="bonus" type="number" value={employee.bonus ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
+                                        {allowanceOrder.map((key) => {
+                                            if (hiddenFields[key]) return null;
+                                            return (
+                                                <div key={key} className="form-item">
+                                                    <label
+                                                        htmlFor={key}
+                                                        onContextMenu={(e) => openCustomMenu(e, 'Earnings', { type: 'builtin', key })}
+                                                        onMouseDown={(e) => startLongPress(e, 'Earnings', { type: 'builtin', key })}
+                                                        onMouseUp={cancelLongPress}
+                                                        onMouseLeave={cancelLongPress}
+                                                        onTouchStart={(e) => startLongPress(e, 'Earnings', { type: 'builtin', key })}
+                                                        onTouchEnd={cancelLongPress}
+                                                    >
+                                                        <EditableLabel fieldKey={key} defaultText={defaultFieldLabels[key] || key} />
+                                                    </label>
+                                                    <input
+                                                        id={key}
+                                                        name={key}
+                                                        type="number"
+                                                        value={employee[key] ?? ''}
+                                                        onChange={handleChange}
+                                                    />
+                                                </div>
+                                            );
+                                        })}
                                         {customBoxes
                                             .filter(cb =>
                                                 cb.category === 'Earnings' &&
                                                 (!cb.employeeCategory || cb.employeeCategory === category)
                                             )
                                             .map(cb => (
-                                            <div key={cb.id} className="form-item">
-                                                <label>{cb.label}</label>
-                                                <input
-                                                    type="number"
-                                                    value={(customBoxValues[cb.label] ?? '')}
-                                                    onChange={(e) => handleCustomBoxChange(cb.label, e.target.value)}
-                                                />
-                                            </div>
-                                        ))}
+                                                <div
+                                                    key={cb.id}
+                                                    className="form-item"
+                                                >
+                                                    <label
+                                                        onContextMenu={(e) => openCustomMenu(e, 'Earnings', { type: 'custom', id: cb.id })}
+                                                        onMouseDown={(e) => startLongPress(e, 'Earnings', { type: 'custom', id: cb.id })}
+                                                        onMouseUp={cancelLongPress}
+                                                        onMouseLeave={cancelLongPress}
+                                                        onTouchStart={(e) => startLongPress(e, 'Earnings', { type: 'custom', id: cb.id })}
+                                                        onTouchEnd={cancelLongPress}
+                                                    >
+                                                        {cb.label}
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        value={(customBoxValues[cb.label] ?? '')}
+                                                        onChange={(e) => handleCustomBoxChange(cb.label, e.target.value)}
+                                                    />
+                                                </div>
+                                            ))}
 
 
                                         <div className="form-item"><label>Other allowance</label><input type="number" readOnly aria-readonly="true" value={employee.otherAllowance?.toFixed(2) ?? '0.00'} style={{ background:'#f3f4f6', color:'#6b7280' }}/></div>
-                                        <div className="form-item" style={{ gridColumn: '1 / -1' }}>
+                                        <div className="form-item">
                                             <div className="btn-container btn-right">
                                                 <button
                                                     type="button"
@@ -1350,61 +1610,58 @@ export default function AddEmployee() {
 
                                 {activeTab === 'Deductions' && (
                                     <div className="form-grid">
-                                        {!hiddenFields.advance && (
-                                        <div className="form-item">
-                                            <label htmlFor="advance">
-                                                <EditableLabel fieldKey="advance" defaultText="Advance" />
-                                            </label>
-                                            <input id="advance" name="advance" type="number" value={employee.advance ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
-                                        {!hiddenFields.loanDeduction && (
-                                        <div className="form-item">
-                                            <label htmlFor="loanDeduction">
-                                                <EditableLabel fieldKey="loanDeduction" defaultText="Loan Deduction" />
-                                            </label>
-                                            <input id="loanDeduction" name="loanDeduction" type="number" value={employee.loanDeduction ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
-                                        {!hiddenFields.professionalTax && (
-                                        <div className="form-item">
-                                            <label htmlFor="professionalTax">
-                                                <EditableLabel fieldKey="professionalTax" defaultText="Professional Tax" />
-                                            </label>
-                                            <input id="professionalTax" name="professionalTax" type="number" value={employee.professionalTax ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
-                                        {!hiddenFields.underPerformance && (
-                                        <div className="form-item">
-                                            <label htmlFor="underPerformance">
-                                                <EditableLabel fieldKey="underPerformance" defaultText="Under Performance" />
-                                            </label>
-                                            <input id="underPerformance" name="underPerformance" type="number" value={employee.underPerformance ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
-                                        {!hiddenFields.salesDebits && (
-                                        <div className="form-item">
-                                            <label htmlFor="salesDebits">
-                                                <EditableLabel fieldKey="salesDebits" defaultText="Sales Debits" />
-                                            </label>
-                                            <input id="salesDebits" name="salesDebits" type="number" value={employee.salesDebits ?? ''} onChange={handleChange}/>
-                                        </div>
-                                        )}
+                                        {deductionOrder.map((key) => {
+                                            if (hiddenFields[key]) return null;
+                                            return (
+                                                <div key={key} className="form-item">
+                                                    <label
+                                                        htmlFor={key}
+                                                        onContextMenu={(e) => openCustomMenu(e, 'Deductions', { type: 'builtin', key })}
+                                                        onMouseDown={(e) => startLongPress(e, 'Deductions', { type: 'builtin', key })}
+                                                        onMouseUp={cancelLongPress}
+                                                        onMouseLeave={cancelLongPress}
+                                                        onTouchStart={(e) => startLongPress(e, 'Deductions', { type: 'builtin', key })}
+                                                        onTouchEnd={cancelLongPress}
+                                                    >
+                                                        <EditableLabel fieldKey={key} defaultText={defaultFieldLabels[key] || key} />
+                                                    </label>
+                                                    <input
+                                                        id={key}
+                                                        name={key}
+                                                        type="number"
+                                                        value={employee[key] ?? ''}
+                                                        onChange={handleChange}
+                                                    />
+                                                </div>
+                                            );
+                                        })}
                                         {customBoxes
                                             .filter(cb =>
                                                 cb.category === 'Deductions' &&
                                                 (!cb.employeeCategory || cb.employeeCategory === category)
                                             )
                                             .map(cb => (
-                                            <div key={cb.id} className="form-item">
-                                                <label>{cb.label}</label>
-                                                <input
-                                                    type="number"
-                                                    value={(customBoxValues[cb.label] ?? '')}
-                                                    onChange={(e) => handleCustomBoxChange(cb.label, e.target.value)}
-                                                />
-                                            </div>
-                                        ))}
+                                                <div
+                                                    key={cb.id}
+                                                    className="form-item"
+                                                >
+                                                    <label
+                                                        onContextMenu={(e) => openCustomMenu(e, 'Deductions', { type: 'custom', id: cb.id })}
+                                                        onMouseDown={(e) => startLongPress(e, 'Deductions', { type: 'custom', id: cb.id })}
+                                                        onMouseUp={cancelLongPress}
+                                                        onMouseLeave={cancelLongPress}
+                                                        onTouchStart={(e) => startLongPress(e, 'Deductions', { type: 'custom', id: cb.id })}
+                                                        onTouchEnd={cancelLongPress}
+                                                    >
+                                                        {cb.label}
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        value={(customBoxValues[cb.label] ?? '')}
+                                                        onChange={(e) => handleCustomBoxChange(cb.label, e.target.value)}
+                                                    />
+                                                </div>
+                                            ))}
 
 
                                         <div className="form-item"><label>Other deduction</label><input type="number" readOnly aria-readonly="true" value={employee.otherDeduction?.toFixed(2) ?? '0.00'} style={{ background:'#f3f4f6', color:'#6b7280' }}/></div>
@@ -1425,15 +1682,27 @@ export default function AddEmployee() {
                                                 (!cb.employeeCategory || cb.employeeCategory === category)
                                             )
                                             .map(cb => (
-                                            <div key={cb.id} className="form-item">
-                                                <label>{cb.label}</label>
-                                                <input
-                                                    type="text"
-                                                    value={(customBoxValues[cb.label] ?? '')}
-                                                    onChange={(e) => handleCustomBoxChange(cb.label, e.target.value)}
-                                                />
-                                            </div>
-                                        ))}
+                                                <div
+                                                    key={cb.id}
+                                                    className="form-item"
+                                                >
+                                                    <label
+                                                        onContextMenu={(e) => openCustomMenu(e, 'Summary', { type: 'custom', id: cb.id })}
+                                                        onMouseDown={(e) => startLongPress(e, 'Summary', { type: 'custom', id: cb.id })}
+                                                        onMouseUp={cancelLongPress}
+                                                        onMouseLeave={cancelLongPress}
+                                                        onTouchStart={(e) => startLongPress(e, 'Summary', { type: 'custom', id: cb.id })}
+                                                        onTouchEnd={cancelLongPress}
+                                                    >
+                                                        {cb.label}
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={(customBoxValues[cb.label] ?? '')}
+                                                        onChange={(e) => handleCustomBoxChange(cb.label, e.target.value)}
+                                                    />
+                                                </div>
+                                            ))}
 
                                     </div>
                                 )}
@@ -1606,7 +1875,67 @@ export default function AddEmployee() {
                 </form>
             </div>
 
-            
+            {customMenu.open && (
+                <>
+                    <div
+                        onClick={() => setCustomMenu(prev => ({ ...prev, open: false }))}
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'transparent',
+                            zIndex: 1500
+                        }}
+                    />
+                    <div
+                        style={{
+                            position: 'fixed',
+                            top: customMenu.y,
+                            left: customMenu.x,
+                            transform: 'translate(-50%, 0)',
+                            background: '#ffffff',
+                            border: '1px solid #d1d5db',
+                            borderRadius: 6,
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                            padding: 4,
+                            zIndex: 1501,
+                            minWidth: 140
+                        }}
+                    >
+                        <button
+                            type="button"
+                            className="btn btn-sm btn-light"
+                            disabled={!canMoveUp}
+                            onClick={() => {
+                                if (!customMenu.target) return;
+                                if (customMenu.target.type === 'custom') {
+                                    moveCustomBoxInTab(customMenu.tabCategory, category, customMenu.target.id, -1);
+                                } else if (customMenu.target.type === 'builtin') {
+                                    moveBuiltinField(customMenu.tabCategory, customMenu.target.key, -1);
+                                }
+                            }}
+                            style={{ width: '100%', justifyContent: 'flex-start', marginBottom: 4 }}
+                        >
+                            Move up
+                        </button>
+                        <button
+                            type="button"
+                            className="btn btn-sm btn-light"
+                            disabled={!canMoveDown}
+                            onClick={() => {
+                                if (!customMenu.target) return;
+                                if (customMenu.target.type === 'custom') {
+                                    moveCustomBoxInTab(customMenu.tabCategory, category, customMenu.target.id, 1);
+                                } else if (customMenu.target.type === 'builtin') {
+                                    moveBuiltinField(customMenu.tabCategory, customMenu.target.key, 1);
+                                }
+                            }}
+                            style={{ width: '100%', justifyContent: 'flex-start' }}
+                        >
+                            Move down
+                        </button>
+                    </div>
+                </>
+            )}
             {showAttendanceModal && (
                 <div
                     style={{

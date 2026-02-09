@@ -26,6 +26,9 @@ public class CustomComponent {
     @Column(length = 64)
     private String tenantId;
 
+    @Column(name = "display_order")
+    private Integer displayOrder;
+
     public Long getId() {
         return id;
     }
@@ -65,5 +68,12 @@ public class CustomComponent {
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
-}
 
+    public Integer getDisplayOrder() {
+        return displayOrder;
+    }
+
+    public void setDisplayOrder(Integer displayOrder) {
+        this.displayOrder = displayOrder;
+    }
+}

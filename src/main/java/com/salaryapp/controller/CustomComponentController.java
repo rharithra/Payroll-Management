@@ -2,7 +2,9 @@ package com.salaryapp.controller;
 
 import com.salaryapp.model.CustomComponent;
 import com.salaryapp.repository.CustomComponentRepository;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,7 +32,7 @@ public class CustomComponentController {
     @GetMapping
     public ResponseEntity<List<CustomComponent>> list() {
         String tenantId = currentTenantId();
-        List<CustomComponent> items = repository.findAllByTenantId(tenantId);
+        List<CustomComponent> items = repository.findAllByTenantIdOrderByDisplayOrderAscIdAsc(tenantId);
         return ResponseEntity.ok(items);
     }
 
@@ -63,6 +66,29 @@ public class CustomComponentController {
         return ResponseEntity.ok(saved);
     }
 
+    @PutMapping(value = "/reorder", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Void> reorder(@RequestBody List<Long> ids) {
+        String tenantId = currentTenantId();
+        if (ids == null || ids.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        List<CustomComponent> items = repository.findAllByTenantId(tenantId);
+        Map<Long, CustomComponent> byId = new HashMap<>();
+        for (CustomComponent c : items) {
+            byId.put(c.getId(), c);
+        }
+        int order = 0;
+        for (Long id : ids) {
+            CustomComponent c = byId.get(id);
+            if (c != null) {
+                c.setDisplayOrder(order);
+                order++;
+            }
+        }
+        repository.saveAll(items);
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         String tenantId = currentTenantId();
@@ -83,4 +109,3 @@ public class CustomComponentController {
         return details != null ? details.toString() : null;
     }
 }
-
